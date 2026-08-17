@@ -27,7 +27,7 @@
   <!-- SBT Bold White Lettering -->
   <text 
     x="50%" 
-    y="56%" 
+    y="50%" 
     text-anchor="middle" 
     dominant-baseline="central" 
     fill="#FFFFFF" 
@@ -38,17 +38,4 @@
     style="text-shadow: 0 8px 24px rgba(4, 53, 43, 0.6);"
   >SBT</text>
 
-  <!-- Small Bottom Subtitle / Plate Indicator -->
-  <text 
-    x="50%" 
-    y="78%" 
-    text-anchor="middle" 
-    dominant-baseline="central" 
-    fill="#04352b" 
-    font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" 
-    font-weight="900" 
-    font-size="34" 
-    letter-spacing="6"
-    opacity="0.9"
-  >SMART BIN TAG</text>
 </svg>
