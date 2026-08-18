@@ -741,35 +741,6 @@ export default function App() {
     }
   };
 
-  // --- DEMO INSTANT NOTIFICATION SIMULATORS ---
-  const triggerDemoCollectionReminder = () => {
-    if (!currentUser) return;
-    mockDb.addNotification(
-      currentUser.uid,
-      'Collection Reminder',
-      '🚨 Collection Alert: Blue Bin Tomorrow',
-      'This is a simulated alarm reminder for your Blue Bin (SBT-00000003). Please pull it to the pavement boundary tonight.',
-      'my-bins'
-    );
-    syncLocalDatabaseState();
-    setIsNotificationsOpen(true);
-    alert('Simulated Collection Notification sent! Open your notifications panel to view.');
-  };
-
-  const triggerDemoMessageReport = () => {
-    if (!currentUser) return;
-    mockDb.addNotification(
-      currentUser.uid,
-      'Private Message',
-      '💬 Private Message Received',
-      'Simulated Finder message: "Excuse me, I spotted your green recycling bin blown down by the canal path. I stood it upright near arch 4."',
-      'notifications'
-    );
-    syncLocalDatabaseState();
-    setIsNotificationsOpen(true);
-    alert('Simulated neighbour message sent! Check the notifications panel.');
-  };
-
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
   if (launchStep < 4) {
@@ -962,10 +933,10 @@ export default function App() {
           />
         )}
 
-        {/* VIEW 8B: PUBLIC MESSAGE OWNER PAGE */}
+        {/* VIEW 8B: PUBLIC REPORT PAGE (FALLBACK) */}
         {(route.view === 'report-message' || route.view === 'chat-feed') && (
           <Reports 
-            initialAction="message"
+            initialAction="found"
             initialSerial={route.serialNumber}
             setView={handleSetView}
             onRefresh={syncLocalDatabaseState}
@@ -1236,23 +1207,10 @@ export default function App() {
                     <span>Real-Time Push Notifications on Mobile/Tablet Home Screen (When App Closed or Minimized)</span>
                   </label>
 
-                  <div className="pt-1 flex items-center justify-between gap-2">
+                  <div className="pt-1">
                     <p className="text-[10px] text-emerald-100/60 font-mono">
                       Collection alerts pop up natively on your device home screen lockscreen via Service Worker & Nhost Hasura sync.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        sendNativeDeviceNotification(
-                          '🚨 Home Screen Collection Alert Test',
-                          'Your Smart Bin Tag collection reminder pops up on your phone/tablet screen even when the app is closed!',
-                          { url: '/' }
-                        );
-                      }}
-                      className="px-2.5 py-1 bg-[#064e3f] hover:bg-[#0a6c58] text-[#45D153] border border-[#45D153]/40 rounded-lg text-[10px] font-mono font-bold whitespace-nowrap cursor-pointer transition-all"
-                    >
-                      Test Phone Alert
-                    </button>
                   </div>
 
                   <label className="flex items-center space-x-3 text-xs text-emerald-100/80 font-medium select-none cursor-pointer">

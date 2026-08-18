@@ -9,7 +9,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // ==== Type Definitions ====
-type ActionType = 'found' | 'damaged' | 'message';
+type ActionType = 'found' | 'damaged';
 
 interface TargetBinInfo {
   binType?: string;
@@ -39,9 +39,9 @@ export default function Reports({
   const currentUser = mockDb.getCurrentUser();
   const isAdmin = currentUser?.accountType === 'admin';
 
-  // Allow any user (guest, homeowner, admin) to send messages or submit reports
+  // Allow any user (guest, homeowner, admin) to submit found or damaged bin reports
   const getValidInitialAction = useCallback((): ActionType => {
-    return initialAction || 'found';
+    return initialAction === 'damaged' ? 'damaged' : 'found';
   }, [initialAction]);
 
   const [action, setAction] = useState<ActionType>(getValidInitialAction);
@@ -178,24 +178,6 @@ export default function Reports({
         finderName: finderName.trim() || undefined,
         finderEmail: finderEmail.trim() || undefined
       });
-    } else if (action === 'message') {
-      if (!finderName.trim() || !finderEmail.trim() || !messageText.trim()) {
-        setError('Please fill in your name, email, and message to contact the owner.');
-        return;
-      }
-
-      const messageResult = mockDb.sendPrivateMessage(
-        serialNumber.trim().toUpperCase(),
-        finderName.trim(),
-        finderEmail.trim(),
-        finderPhone.trim() || undefined,
-        messageText.trim()
-      );
-
-      if (!messageResult.success) {
-        setError(messageResult.error || 'Failed to dispatch your private message.');
-        return;
-      }
     }
 
     setSuccess(true);
@@ -275,7 +257,6 @@ export default function Reports({
     switch (action) {
       case 'found': return <MapPin className="h-7 w-7 text-amber-400 animate-bounce" />;
       case 'damaged': return <AlertCircle className="h-7 w-7 text-rose-500 animate-pulse" />;
-      case 'message': return <MessageSquare className="h-7 w-7 text-sky-400" />;
     }
   };
 
@@ -307,12 +288,6 @@ export default function Reports({
             className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${action === 'damaged' ? 'bg-[#02241d] text-[#45D153] border border-[#064e3f]' : 'text-gray-400 hover:text-white'}`}
           >
             Damaged Bin
-          </button>
-          <button 
-            onClick={() => setAction('message')}
-            className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${action === 'message' ? 'bg-[#02241d] text-[#45D153] border border-[#064e3f]' : 'text-gray-400 hover:text-white'}`}
-          >
-            Message Owner
           </button>
         </div>
       )}
@@ -355,7 +330,6 @@ export default function Reports({
                 <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-wide leading-tight">
                   {action === 'found' && 'Report a Found Wheelie Bin'}
                   {action === 'damaged' && 'Report a Damaged Bin'}
-                  {action === 'message' && 'Securely Contact Bin Owner'}
                 </h2>
                 <p className="text-[11px] text-emerald-100/60 mt-0.5 font-sans">Your privacy is respected. Owner details are fully locked.</p>
               </div>
@@ -509,10 +483,10 @@ export default function Reports({
               </div>
             )}
 
-            {/* Contact / Message Section */}
+            {/* Contact Details Section */}
             <div className="border-t border-[#064e3f] pt-5 space-y-4">
               <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest font-mono">
-                {action === 'message' ? 'Your Details & Message' : 'Finder Details (Optional)'}
+                Finder Details (Optional)
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -525,7 +499,6 @@ export default function Reports({
                       onChange={(e) => setFinderName(e.target.value)}
                       placeholder="John Smith"
                       className="pl-9 pr-3 w-full h-[46px] bg-[#011a14] border border-[#064e3f] rounded-lg text-sm text-white outline-none focus:border-[#45D153] transition-all"
-                      required={action === 'message'}
                     />
                   </div>
                 </div>
@@ -539,7 +512,6 @@ export default function Reports({
                       onChange={(e) => setFinderEmail(e.target.value)}
                       placeholder="john@example.com"
                       className="pl-9 pr-3 w-full h-[46px] bg-[#011a14] border border-[#064e3f] rounded-lg text-sm text-white outline-none focus:border-[#45D153] transition-all"
-                      required={action === 'message'}
                     />
                   </div>
                 </div>
@@ -563,15 +535,14 @@ export default function Reports({
 
               <div>
                 <label className="block text-xs font-black text-emerald-300 uppercase tracking-wider font-mono mb-1.5">
-                  {action === 'message' ? 'Message Text' : 'Additional Notes'}
+                  Additional Notes
                 </label>
                 <textarea 
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
-                  placeholder={action === 'message' ? "Type your private message here..." : "e.g. Moved it off the road to avoid traffic."}
+                  placeholder="e.g. Moved it off the road to avoid traffic."
                   rows={4}
                   className="px-3.5 py-2 w-full bg-[#011a14] border border-[#064e3f] rounded-xl text-sm text-white outline-none focus:border-[#45D153] transition-all"
-                  required={action === 'message'}
                 />
               </div>
             </div>
@@ -583,7 +554,6 @@ export default function Reports({
               <Send className="h-4.5 w-4.5 text-white" />
               {action === 'found' && 'Submit Found Report'}
               {action === 'damaged' && 'Submit Damage Report'}
-              {action === 'message' && 'Send Private Message'}
             </button>
           </form>
         )}

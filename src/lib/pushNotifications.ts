@@ -102,8 +102,8 @@ export async function sendNativeDeviceNotification(
       if (reg && reg.showNotification) {
         await reg.showNotification(title, {
           body,
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
+          icon: '/favicon.svg',
+          badge: '/favicon.svg',
           vibrate: [300, 100, 300, 100, 300],
           tag,
           renotify: true,
@@ -127,7 +127,7 @@ export async function sendNativeDeviceNotification(
     // 2. Fallback to standard HTML5 Notification API
     const notifOptions: NotificationOptions & { renotify?: boolean } = {
       body,
-      icon: '/favicon.ico',
+      icon: '/favicon.svg',
       tag,
       renotify: true,
       data: { url },

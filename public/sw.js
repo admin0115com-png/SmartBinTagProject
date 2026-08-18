@@ -24,8 +24,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/favicon.svg',
+    badge: '/favicon.svg',
     vibrate: [200, 100, 200, 100, 200],
     tag: data.tag || 'sbt-collection-alert',
     renotify: true,
@@ -71,8 +71,8 @@ self.addEventListener('message', (event) => {
     const { title, body, tag, url } = event.data;
     const options = {
       body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
       vibrate: [300, 100, 300],
       tag: tag || 'sbt-alert-' + Date.now(),
       renotify: true,

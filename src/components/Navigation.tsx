@@ -407,13 +407,13 @@ export default function Navigation({
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setView('login', {})}
-                  className="bg-[#45D153] hover:bg-[#5ce06a] text-[#04352b] font-black text-[9px] tracking-widest uppercase px-2.5 py-1.5 rounded-lg shadow-sm shadow-[#45D153]/10 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                  className="bg-[#45D153] hover:bg-[#5ce06a] text-[#011a14] font-black text-[9px] tracking-widest uppercase px-2.5 py-1.5 rounded-lg shadow-sm shadow-[#45D153]/10 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
                 >
                   LOGIN
                 </button>
                 <button
                   onClick={() => setView('register', {})}
-                  className="bg-[#45D153] hover:bg-[#5ce06a] text-[#04352b] font-black text-[9px] tracking-widest uppercase px-2.5 py-1.5 rounded-lg shadow-sm shadow-[#45D153]/10 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                  className="bg-[#45D153] hover:bg-[#5ce06a] text-[#011a14] font-black text-[9px] tracking-widest uppercase px-2.5 py-1.5 rounded-lg shadow-sm shadow-[#45D153]/10 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
                 >
                   SIGN UP
                 </button>

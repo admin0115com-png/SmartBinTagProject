@@ -125,8 +125,6 @@ export default function Dashboard({
   const unreadMessages = dbMessages.filter(m => userBinSerials.includes(m.serialNumber) && m.status === 'Unread');
   const unreadMessagesCount = unreadMessages.length;
   const unreadNotificationsCount = notifications.filter(n => !n.read && !n.deleted).length;
-  const activeBinsWithCollection = bins.filter(b => b.status === 'Active' && b.nextCollection);
-  const upcomingCollectionsCount = activeBinsWithCollection.length;
   const supportTicketsCount = dbTickets.length;
 
   useEffect(() => {
@@ -449,31 +447,31 @@ export default function Dashboard({
       </div>
 
       {/* Collection Alerts Engine */}
-      <div className="bg-[#032e25] border border-[#064e3f] hover:border-[#45D153]/30 rounded-[24px] shadow-2xl p-6 text-white relative overflow-hidden transition-all duration-300">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-[#45D153]/5 to-transparent rounded-full blur-2xl pointer-events-none"></div>
+      <div className="bg-[#054337] border border-[#0c624f] hover:border-[#45D153]/40 rounded-[24px] shadow-2xl p-6 text-white relative overflow-hidden transition-all duration-300">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-[#45D153]/10 to-transparent rounded-full blur-2xl pointer-events-none"></div>
         
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#064e3f]/60 pb-5 mb-5">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#0c624f]/70 pb-5 mb-5">
           <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 bg-[#45D153]/10 border border-[#45D153]/20 rounded-xl flex items-center justify-center text-[#45D153] shadow-md shadow-[#45D153]/5">
+            <div className="h-10 w-10 bg-[#45D153]/15 border border-[#45D153]/30 rounded-xl flex items-center justify-center text-[#45D153] shadow-md shadow-[#45D153]/5">
               <Clock className="h-5 w-5 animate-pulse" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black tracking-tight font-sans uppercase">
+              <h2 className="text-base sm:text-lg font-black tracking-tight font-sans uppercase text-white">
                 Collection Alerts Engine
               </h2>
-              <p className="text-xs text-emerald-300/60 font-sans">
+              <p className="text-xs text-emerald-200/80 font-sans">
                 Real-time bin telemetry alarms & automated audio synthesis
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3 bg-black/40 border border-[#064e3f] px-4 py-2 rounded-2xl">
+          <div className="flex items-center space-x-3 bg-[#032f26] border border-[#0c624f] px-4 py-2 rounded-2xl shadow-inner">
             <div className="flex items-center space-x-2">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#45D153] opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#45D153]"></span>
               </span>
-              <span className="text-[10px] font-bold text-gray-400 font-mono tracking-widest uppercase">CLOCK TIO:</span>
+              <span className="text-[10px] font-bold text-emerald-200/70 font-mono tracking-widest uppercase">CLOCK TIO:</span>
             </div>
             <span className="text-sm font-black text-[#45D153] font-mono tracking-widest drop-shadow-[0_0_10px_rgba(69,209,83,0.3)]">
               {formatTimeSeconds(liveTime)}
@@ -484,17 +482,17 @@ export default function Dashboard({
         <div className="space-y-4">
           <div className="text-[10px] font-black uppercase tracking-widest text-[#45D153] font-mono mb-2 flex items-center justify-between">
             <span>Armed Reminders & Tone Matrix</span>
-            <span className="text-emerald-300/50">United Kingdom (GMT+1)</span>
+            <span className="text-emerald-200/70">United Kingdom (GMT+1)</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {mockDb.getReminders(currentUser.uid).length === 0 ? (
-              <div className="col-span-full py-6 text-center border border-dashed border-[#064e3f] rounded-2xl bg-[#02241d]/20 text-sm text-gray-400 flex flex-col items-center gap-2">
-                <Clock className="h-8 w-8 text-[#45D153]/30" />
-                <p className="font-sans text-xs">No active smart tags bound to the alarm matrix.</p>
+              <div className="col-span-full py-6 text-center border border-dashed border-[#0c624f] rounded-2xl bg-[#032f26]/60 text-sm text-gray-300 flex flex-col items-center gap-2">
+                <Clock className="h-8 w-8 text-[#45D153]/40" />
+                <p className="font-sans text-xs text-emerald-100/70">No active smart tags bound to the alarm matrix.</p>
                 <button
                   onClick={() => setView('register-bin')}
-                  className="mt-2 px-4 py-1.5 bg-[#45D153] text-[#04352b] text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-emerald-400 transition-all cursor-pointer"
+                  className="mt-2 px-4 py-1.5 bg-[#45D153] text-[#04352b] text-[10px] font-black uppercase tracking-wider rounded-lg hover:bg-emerald-400 transition-all cursor-pointer shadow-md"
                 >
                   Register Tag Now
                 </button>
@@ -505,35 +503,35 @@ export default function Dashboard({
                 return (
                   <div 
                     key={rem.reminderId} 
-                    className="bg-[#02241d]/60 border border-[#064e3f]/80 p-4 rounded-2xl flex flex-col justify-between space-y-3.5 hover:border-[#45D153]/30 transition-all"
+                    className="bg-[#032f26] border border-[#0c624f] p-4 rounded-2xl flex flex-col justify-between space-y-3.5 hover:border-[#45D153]/50 transition-all shadow-md"
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-[10px] font-black text-emerald-400 font-mono tracking-wider bg-emerald-950/80 px-2.5 py-1 rounded-md border border-[#064e3f]">
+                        <span className="text-[10px] font-black text-[#45D153] font-mono tracking-wider bg-[#02241d] px-2.5 py-1 rounded-md border border-[#0c624f]">
                           {rem.serialNumber}
                         </span>
                         <div className="mt-2 text-xs font-bold text-white font-sans">
                           {rem.collectionDay} Collection Schedule
                         </div>
                       </div>
-                      <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${rem.enabled ? 'bg-[#45D153]/10 text-[#45D153] border border-[#45D153]/20' : 'bg-rose-950/40 text-rose-300 border border-rose-900/20'}`}>
+                      <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${rem.enabled ? 'bg-[#45D153]/20 text-[#45D153] border border-[#45D153]/30' : 'bg-rose-950/40 text-rose-300 border border-rose-900/20'}`}>
                         {rem.enabled ? '● Armed' : '○ Paused'}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-400 font-sans border-t border-[#064e3f]/40 pt-3">
+                    <div className="grid grid-cols-2 gap-2 text-[10px] text-emerald-100/70 font-sans border-t border-[#0c624f]/60 pt-3">
                       <div>
-                        <span className="block text-[8px] uppercase tracking-widest text-emerald-300/50">Day Before</span>
+                        <span className="block text-[8px] uppercase tracking-widest text-white font-bold">Day Before</span>
                         <span className="font-mono text-white text-xs font-bold">{rem.reminderOneTime || '18:00'}</span>
                       </div>
                       <div>
-                        <span className="block text-[8px] uppercase tracking-widest text-emerald-300/50">Collection Day</span>
+                        <span className="block text-[8px] uppercase tracking-widest text-white font-bold">Collection Day</span>
                         <span className="font-mono text-white text-xs font-bold">{rem.reminderTwoTime || '07:00'}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between bg-black/20 border border-[#064e3f]/40 px-3 py-2 rounded-xl mt-1 text-[10px]">
-                      <span className="text-gray-400 flex items-center gap-1">
+                    <div className="flex items-center justify-between bg-[#02241d]/80 border border-[#0c624f]/60 px-3 py-2 rounded-xl mt-1 text-[10px]">
+                      <span className="text-emerald-100/80 flex items-center gap-1.5">
                         <Volume2 className="h-3 w-3 text-[#45D153]" />
                         Tone: <span className="font-black text-emerald-300 font-mono">{tone}</span>
                       </span>
@@ -648,22 +646,6 @@ export default function Dashboard({
         <div className="bg-[#04352b] border border-[#064e3f] p-5 rounded-[24px] shadow-2xl flex flex-col justify-between hover:scale-[1.02] transition-all duration-300 text-white">
           <div>
             <div className="flex justify-between items-start">
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest font-mono">Upcoming Collections</span>
-              <div className="p-2 rounded-lg bg-[#45D153]/10 text-[#45D153] border border-[#45D153]/20">
-                <Calendar className="h-5 w-5" />
-              </div>
-            </div>
-            <p className="text-4xl font-extrabold text-white mt-4">{upcomingCollectionsCount}</p>
-            <p className="text-[10px] text-emerald-100/50 mt-1">Bins scheduled for pickup</p>
-          </div>
-          <button onClick={() => setView('my-bins')} className="text-xs text-[#45D153] font-black flex items-center gap-1 mt-6 hover:underline cursor-pointer uppercase tracking-wider">
-            <span>View Collections</span><ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        <div className="bg-[#04352b] border border-[#064e3f] p-5 rounded-[24px] shadow-2xl flex flex-col justify-between hover:scale-[1.02] transition-all duration-300 text-white">
-          <div>
-            <div className="flex justify-between items-start">
               <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest font-mono">Support Tickets</span>
               <div className="p-2 rounded-lg bg-[#45D153]/10 text-teal-400 border border-teal-500/20">
                 <FileText className="h-5 w-5" />
@@ -678,79 +660,21 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Upcoming Collections */}
-      <div className="bg-[#02241d]/90 p-6 sm:p-8 rounded-[24px] shadow-2xl border border-emerald-950/45 text-white">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-5 w-5 text-[#45D153]" />
-            <h2 className="text-sm font-bold text-emerald-400 uppercase tracking-widest font-mono">Upcoming Collections ({bins.length} Registered Bins)</h2>
-          </div>
-          <button onClick={() => setView('my-bins')} className="text-xs font-bold text-[#45D153] hover:underline flex items-center gap-1">
-            <span>Configure Schedules</span><ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        {bins.length === 0 ? (
-          <div className="text-center py-8 bg-[#011a14] rounded-xl border border-[#064e3f]">
-            <p className="text-xs text-emerald-100/60 font-medium">You don't have any registered bins yet.</p>
-            <button onClick={() => setView('register-bin')} className="mt-3 px-4 py-2 bg-[#45D153]/10 hover:bg-[#45D153]/20 border border-[#45D153]/30 text-[#45D153] font-bold rounded-lg text-xs">
-              Link Your First Tag Sticker
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {bins.map(bin => {
-              const isActive = bin.status === 'Active';
-              return (
-                <div key={bin.binId} className={`p-4 rounded-xl border ${isActive ? 'bg-[#011a14] border-[#064e3f]' : 'bg-red-950/10 border-red-900/20'} flex items-start justify-between`}>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center space-x-2">
-                      <span className="w-3.5 h-3.5 rounded-full inline-block border border-white/20" style={{
-                        backgroundColor: bin.binType.toLowerCase() === 'green' ? '#10b981' :
-                                        bin.binType.toLowerCase() === 'black' ? '#111827' :
-                                        bin.binType.toLowerCase() === 'blue' ? '#3b82f6' :
-                                        bin.binType.toLowerCase() === 'brown' ? '#78350f' : '#6b7280'
-                      }}></span>
-                      <h3 className="text-xs font-extrabold text-white uppercase">{bin.binType} Bin</h3>
-                    </div>
-                    <p className="text-[11px] font-mono font-bold text-emerald-400">{bin.serialNumber}</p>
-                    <p className="text-xs text-emerald-100/70 font-medium leading-snug">{bin.houseNumber} {bin.street}, {bin.postcode}</p>
-                    
-                    <div className="pt-2 flex items-center gap-1.5 text-xs">
-                      <Clock className="h-3.5 w-3.5 text-[#45D153]" />
-                      <span className="font-bold text-white font-sans">{bin.nextCollection || 'No upcoming calendar alerts'}</span>
-                    </div>
-                  </div>
-
-                  <span className={`px-2 py-0.5 rounded text-[9px] font-black font-mono tracking-wider uppercase ${
-                    bin.status === 'Active' ? 'bg-[#45D153]/10 text-[#45D153]' :
-                    bin.status === 'Lost' ? 'bg-rose-950/20 text-rose-300 border border-rose-900/40' :
-                    'bg-amber-950/20 text-amber-300 border border-amber-900/40'
-                  }`}>
-                    {bin.status}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
       {/* Tabs Panels Section */}
       <div id="tabs-section" className="grid grid-cols-1 lg:grid-cols-3 gap-8 scroll-mt-6">
         
-        <div className="lg:col-span-3 bg-[#02241d]/90 border border-[#064e3f] rounded-[24px] shadow-2xl overflow-hidden flex flex-col text-white">
+        <div className="lg:col-span-3 bg-[#054337] border border-[#0c624f] rounded-[24px] shadow-2xl overflow-hidden flex flex-col text-white">
           
-          <div className="border-b border-[#064e3f] bg-[#011a14] p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="border-b border-[#0c624f] bg-[#032f26] p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-black uppercase text-emerald-100/70 tracking-wider">Select Workspace View:</span>
+              <span className="text-xs font-mono font-black uppercase text-emerald-200/90 tracking-wider">Select Workspace View:</span>
             </div>
 
             <div className="relative w-full sm:w-96">
               <button
                 type="button"
                 onClick={() => setIsTabDropdownOpen(!isTabDropdownOpen)}
-                className="w-full flex items-center justify-between bg-[#02241d] text-[#45D153] text-xs font-black uppercase tracking-wider font-mono border-2 border-[#064e3f] hover:border-[#45D153] focus:border-[#45D153] rounded-xl px-4 py-2.5 cursor-pointer transition-all shadow-lg text-left"
+                className="w-full flex items-center justify-between bg-[#043b31] text-[#45D153] text-xs font-black uppercase tracking-wider font-mono border-2 border-[#0c624f] hover:border-[#45D153] focus:border-[#45D153] rounded-xl px-4 py-2.5 cursor-pointer transition-all shadow-lg text-left"
               >
                 <div className="flex items-center gap-2.5 overflow-hidden">
                   {activeTab === 'reports' && <FileText className="h-4 w-4 shrink-0 text-[#45D153]" />}
@@ -770,14 +694,14 @@ export default function Dashboard({
               {isTabDropdownOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setIsTabDropdownOpen(false)} />
-                  <div className="absolute left-0 right-0 top-full mt-2 z-20 bg-[#011a14] border-2 border-[#064e3f] rounded-xl shadow-2xl overflow-hidden divide-y divide-[#064e3f]/50 max-h-64 overflow-y-auto">
+                  <div className="absolute left-0 right-0 top-full mt-2 z-20 bg-[#032f26] border-2 border-[#0c624f] rounded-xl shadow-2xl overflow-hidden divide-y divide-[#0c624f]/60 max-h-64 overflow-y-auto">
                     {(['reports', 'messages', 'tickets', 'logs'] as const).map(tab => (
                       <button
                         key={tab}
                         type="button"
                         onClick={() => { setActiveTab(tab); setIsTabDropdownOpen(false); }}
                         className={`w-full flex items-center justify-between px-4 py-3 text-xs font-black uppercase tracking-wider font-mono transition-colors text-left cursor-pointer ${
-                          activeTab === tab ? 'bg-[#02241d] text-[#45D153]' : 'text-emerald-100/80 hover:bg-[#02241d] hover:text-white'
+                          activeTab === tab ? 'bg-[#043b31] text-[#45D153]' : 'text-emerald-100/90 hover:bg-[#043b31] hover:text-white'
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
@@ -810,12 +734,12 @@ export default function Dashboard({
             {/* TAB 1: REPORTS & INSPECTIONS */}
             {activeTab === 'reports' && (
               <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#064e3f] pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#0c624f]/70 pb-4">
                   <div>
                     <h3 className="text-base font-black uppercase tracking-wider text-[#45D153] font-mono">Public Bin Reports & Inspect Centre</h3>
-                    <p className="text-xs text-emerald-100/70 mt-0.5">Inspect located or damaged bin reports, view finder details, and issue status updates.</p>
+                    <p className="text-xs text-emerald-100/80 mt-0.5">Inspect located or damaged bin reports, view finder details, and issue status updates.</p>
                   </div>
-                  <div className="flex items-center gap-2 bg-[#011a14] p-1 rounded-xl border border-[#064e3f]">
+                  <div className="flex items-center gap-2 bg-[#032f26] p-1 rounded-xl border border-[#0c624f]">
                     <button
                       onClick={() => setReportsFilter('ALL')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all ${reportsFilter === 'ALL' ? 'bg-[#45D153] text-[#02241d]' : 'text-emerald-100/70 hover:text-white'}`}
@@ -838,16 +762,16 @@ export default function Dashboard({
                 </div>
 
                 {dbReports.filter(r => reportsFilter === 'ALL' ? true : reportsFilter === 'FOUND' ? r.reportType === 'Found' : r.reportType === 'Damaged').length === 0 ? (
-                  <div className="text-center py-12 bg-[#011a14] rounded-2xl border border-[#064e3f]/60 p-6">
-                    <CheckCircle className="h-10 w-10 text-emerald-500/40 mx-auto mb-3" />
-                    <p className="text-sm font-mono text-emerald-100/80">No reports found matching the selected filter.</p>
+                  <div className="text-center py-12 bg-[#032f26] rounded-2xl border border-[#0c624f] p-6">
+                    <CheckCircle className="h-10 w-10 text-emerald-400/50 mx-auto mb-3" />
+                    <p className="text-sm font-mono text-emerald-100/90">No reports found matching the selected filter.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {dbReports
                       .filter(r => reportsFilter === 'ALL' ? true : reportsFilter === 'FOUND' ? r.reportType === 'Found' : r.reportType === 'Damaged')
                       .map((rep) => (
-                        <div key={rep.reportId} className="p-4 bg-[#011a14] border border-[#064e3f] hover:border-[#45D153]/50 rounded-2xl text-xs space-y-3 transition-all">
+                        <div key={rep.reportId} className="p-4 bg-[#032f26] border border-[#0c624f] hover:border-[#45D153]/50 rounded-2xl text-xs space-y-3 transition-all shadow-md">
                           <div className="flex justify-between items-start gap-2">
                             <div>
                               <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase font-mono tracking-wider ${
@@ -857,23 +781,23 @@ export default function Dashboard({
                               </span>
                               <h4 className="font-mono font-bold text-white text-sm mt-1">{rep.serialNumber}</h4>
                             </div>
-                            <span className="text-[10px] font-mono text-emerald-400 bg-[#064e3f]/40 px-2 py-1 rounded-md">
+                            <span className="text-[10px] font-mono text-emerald-300 bg-[#02241d] border border-[#0c624f] px-2 py-1 rounded-md">
                               {rep.status || 'Active'}
                             </span>
                           </div>
 
-                          <p className="text-emerald-100/80 leading-relaxed bg-[#02241d]/80 p-2.5 rounded-xl border border-[#064e3f]/40">
+                          <p className="text-emerald-100/90 leading-relaxed bg-[#02241d]/80 p-2.5 rounded-xl border border-[#0c624f]/60">
                             {rep.description || 'No detailed description provided.'}
                           </p>
 
-                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#064e3f]/40 text-[11px] font-mono text-emerald-100/60">
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#0c624f]/50 text-[11px] font-mono text-emerald-100/70">
                             <span>Reporter: {rep.finderName || 'Anonymous Neighbour'}</span>
                             <span>{new Date(rep.timestamp).toLocaleDateString()}</span>
                           </div>
 
                           <button
                             onClick={() => setInspectedReport(rep)}
-                            className="w-full py-2 bg-[#02241d] hover:bg-[#064e3f] text-[#45D153] border border-[#064e3f] hover:border-[#45D153] rounded-xl font-mono font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all"
+                            className="w-full py-2 bg-[#043b31] hover:bg-[#064e3f] text-[#45D153] border border-[#0c624f] hover:border-[#45D153] rounded-xl font-mono font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all shadow"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             <span>Inspect Full Details & Actions</span>
@@ -888,12 +812,12 @@ export default function Dashboard({
             {/* TAB 2: CHAT FEED & MESSAGES */}
             {activeTab === 'messages' && (
               <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#064e3f] pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#0c624f]/70 pb-4">
                   <div>
                     <h3 className="text-base font-black uppercase tracking-wider text-[#45D153] font-mono">Chat Feed & Direct Messaging</h3>
-                    <p className="text-xs text-emerald-100/70 mt-0.5">Communicate with tag finders, bin owners, and local residents instantly.</p>
+                    <p className="text-xs text-emerald-100/80 mt-0.5">Communicate with tag finders, bin owners, and local residents instantly.</p>
                   </div>
-                  <div className="flex items-center gap-2 bg-[#011a14] p-1 rounded-xl border border-[#064e3f]">
+                  <div className="flex items-center gap-2 bg-[#032f26] p-1 rounded-xl border border-[#0c624f]">
                     <button
                       onClick={() => setMessagesFilter('ALL')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all ${messagesFilter === 'ALL' ? 'bg-[#45D153] text-[#02241d]' : 'text-emerald-100/70 hover:text-white'}`}
@@ -911,7 +835,7 @@ export default function Dashboard({
 
                 {/* Quick Chat Composer - ONLY FOR ADMIN */}
                 {currentUser.accountType === 'admin' ? (
-                  <form onSubmit={handleSendChatMessage} className="bg-[#011a14] p-5 rounded-2xl border border-[#064e3f] space-y-4">
+                  <form onSubmit={handleSendChatMessage} className="bg-[#032f26] p-5 rounded-2xl border border-[#0c624f] space-y-4 shadow-md">
                     <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#45D153] flex items-center gap-2">
                       <MessageSquare className="h-4 w-4" />
                       <span>Send Message to Tag Owner / Resident</span>
@@ -939,7 +863,7 @@ export default function Dashboard({
                           placeholder="e.g. SBT-UK-88219"
                           value={chatSerial}
                           onChange={(e) => setChatSerial(e.target.value.toUpperCase())}
-                          className="w-full bg-[#02241d] border border-[#064e3f] rounded-xl px-3 py-2 text-white placeholder-emerald-100/30 focus:border-[#45D153] font-mono uppercase focus:outline-none"
+                          className="w-full bg-[#02241d] border border-[#0c624f] rounded-xl px-3 py-2 text-white placeholder-emerald-100/30 focus:border-[#45D153] font-mono uppercase focus:outline-none"
                         />
                       </div>
                       <div>
@@ -949,7 +873,7 @@ export default function Dashboard({
                           placeholder="Your Name"
                           value={chatSenderName}
                           onChange={(e) => setChatSenderName(e.target.value)}
-                          className="w-full bg-[#02241d] border border-[#064e3f] rounded-xl px-3 py-2 text-white placeholder-emerald-100/30 focus:border-[#45D153] font-mono focus:outline-none"
+                          className="w-full bg-[#02241d] border border-[#0c624f] rounded-xl px-3 py-2 text-white placeholder-emerald-100/30 focus:border-[#45D153] font-mono focus:outline-none"
                         />
                       </div>
                     </div>
@@ -961,7 +885,7 @@ export default function Dashboard({
                         placeholder="Type your message or instructions..."
                         value={chatMessageText}
                         onChange={(e) => setChatMessageText(e.target.value)}
-                        className="w-full bg-[#02241d] border border-[#064e3f] rounded-xl p-3 text-white placeholder-emerald-100/30 focus:border-[#45D153] font-mono text-xs focus:outline-none resize-none"
+                        className="w-full bg-[#02241d] border border-[#0c624f] rounded-xl p-3 text-white placeholder-emerald-100/30 focus:border-[#45D153] font-mono text-xs focus:outline-none resize-none"
                       />
                     </div>
 
@@ -974,7 +898,7 @@ export default function Dashboard({
                     </button>
                   </form>
                 ) : (
-                  <div className="p-4 bg-[#011a14] border border-[#064e3f] rounded-2xl text-xs font-mono text-emerald-300 flex items-center gap-2.5 shadow-sm">
+                  <div className="p-4 bg-[#032f26] border border-[#0c624f] rounded-2xl text-xs font-mono text-emerald-300 flex items-center gap-2.5 shadow-sm">
                     <Info className="h-4 w-4 text-[#45D153] shrink-0" />
                     <span>Chat Feed is read-only. Only Municipal Administrators can dispatch messages to residents.</span>
                   </div>
@@ -988,25 +912,25 @@ export default function Dashboard({
                     {dbMessages
                       .filter(m => messagesFilter === 'ALL' ? true : m.status === 'Unread')
                       .map((msg) => (
-                        <div key={msg.messageId} className="p-4 bg-[#011a14] border border-[#064e3f] rounded-2xl text-xs space-y-2">
+                        <div key={msg.messageId} className="p-4 bg-[#032f26] border border-[#0c624f] rounded-2xl text-xs space-y-2 shadow-md">
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                               <span className="font-mono font-bold text-white text-sm">{msg.senderName}</span>
-                              <span className="bg-[#064e3f] text-[#45D153] text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
+                              <span className="bg-[#043b31] text-[#45D153] border border-[#0c624f] text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
                                 Tag: {msg.serialNumber}
                               </span>
                             </div>
-                            <span className="text-[10px] font-mono text-emerald-400">
+                            <span className="text-[10px] font-mono text-emerald-300">
                               {new Date(msg.createdAt).toLocaleString()}
                             </span>
                           </div>
 
-                          <p className="text-emerald-100/90 leading-relaxed bg-[#02241d] p-3 rounded-xl border border-[#064e3f]/50">
+                          <p className="text-emerald-100/90 leading-relaxed bg-[#02241d] p-3 rounded-xl border border-[#0c624f]/60">
                             {msg.message}
                           </p>
 
                           <div className="flex items-center justify-between gap-2 pt-1 text-[11px] font-mono">
-                            <span className="text-emerald-100/50">Email: {msg.senderEmail || 'N/A'}</span>
+                            <span className="text-emerald-100/60">Email: {msg.senderEmail || 'N/A'}</span>
                             <div className="flex items-center gap-3">
                               {currentUser.accountType === 'admin' && (
                                 <button
@@ -1042,10 +966,10 @@ export default function Dashboard({
             {/* TAB 3: SUPPORT TICKETS */}
             {activeTab === 'tickets' && (
               <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#064e3f] pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#0c624f]/70 pb-4">
                   <div>
                     <h3 className="text-base font-black uppercase tracking-wider text-[#45D153] font-mono">Support Tickets Centre</h3>
-                    <p className="text-xs text-emerald-100/70 mt-0.5">Submit new help tickets or track resolution status in real-time.</p>
+                    <p className="text-xs text-emerald-100/80 mt-0.5">Submit new help tickets or track resolution status in real-time.</p>
                   </div>
                 </div>
 
@@ -1061,7 +985,7 @@ export default function Dashboard({
                     pullRealtimeDatabase();
                     setTimeout(() => setTicketSuccess(false), 4000);
                   }}
-                  className="bg-[#011a14] p-5 rounded-2xl border border-[#064e3f] space-y-4"
+                  className="bg-[#032f26] p-5 rounded-2xl border border-[#0c624f] space-y-4 shadow-md"
                 >
                   <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#45D153] flex items-center gap-2">
                     <PlusCircle className="h-4 w-4" />
@@ -1083,7 +1007,7 @@ export default function Dashboard({
                         placeholder="e.g. Missing bin tag replacement request"
                         value={ticketSubject}
                         onChange={(e) => setTicketSubject(e.target.value)}
-                        className="w-full bg-[#02241d] border border-[#064e3f] rounded-xl px-3 py-2 text-white placeholder-emerald-100/30 focus:border-[#45D153] font-mono focus:outline-none"
+                        className="w-full bg-[#02241d] border border-[#0c624f] rounded-xl px-3 py-2 text-white placeholder-emerald-100/30 focus:border-[#45D153] font-mono focus:outline-none"
                       />
                     </div>
                     <div>
@@ -1091,7 +1015,7 @@ export default function Dashboard({
                       <select
                         value={ticketPriority}
                         onChange={(e) => setTicketPriority(e.target.value as any)}
-                        className="w-full bg-[#02241d] border border-[#064e3f] rounded-xl px-3 py-2 text-white focus:border-[#45D153] font-mono focus:outline-none cursor-pointer"
+                        className="w-full bg-[#02241d] border border-[#0c624f] rounded-xl px-3 py-2 text-white focus:border-[#45D153] font-mono focus:outline-none cursor-pointer"
                       >
                         <option value="LOW">LOW</option>
                         <option value="MEDIUM">MEDIUM</option>
@@ -1108,7 +1032,7 @@ export default function Dashboard({
                       placeholder="Describe your issue or query..."
                       value={ticketDesc}
                       onChange={(e) => setTicketDesc(e.target.value)}
-                      className="w-full bg-[#02241d] border border-[#064e3f] rounded-xl p-3 text-white placeholder-emerald-100/30 focus:border-[#45D153] font-mono text-xs focus:outline-none resize-none"
+                      className="w-full bg-[#02241d] border border-[#0c624f] rounded-xl p-3 text-white placeholder-emerald-100/30 focus:border-[#45D153] font-mono text-xs focus:outline-none resize-none"
                     />
                   </div>
 
@@ -1127,28 +1051,28 @@ export default function Dashboard({
                 ) : (
                   <div className="space-y-3">
                     {dbTickets.map((t) => (
-                      <div key={t.id} className="p-4 bg-[#011a14] border border-[#064e3f] rounded-2xl text-xs space-y-2">
+                      <div key={t.id} className="p-4 bg-[#032f26] border border-[#0c624f] rounded-2xl text-xs space-y-2 shadow-md">
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-white text-sm">{t.subject}</span>
                             <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase ${
                               t.priority === 'CRITICAL' ? 'bg-rose-950/80 text-rose-300 border border-rose-800' :
                               t.priority === 'HIGH' ? 'bg-amber-950/80 text-amber-300 border border-amber-800' :
-                              'bg-[#064e3f] text-[#45D153]'
+                              'bg-[#043b31] text-[#45D153] border border-[#0c624f]'
                             }`}>
                               {t.priority}
                             </span>
                           </div>
-                          <span className="text-[10px] font-mono text-emerald-400 bg-[#064e3f]/40 px-2 py-0.5 rounded-md">
+                          <span className="text-[10px] font-mono text-emerald-300 bg-[#02241d] border border-[#0c624f] px-2 py-0.5 rounded-md">
                             {t.status}
                           </span>
                         </div>
 
-                        <p className="text-emerald-100/90 leading-relaxed bg-[#02241d] p-3 rounded-xl border border-[#064e3f]/50">
+                        <p className="text-emerald-100/90 leading-relaxed bg-[#02241d] p-3 rounded-xl border border-[#0c624f]/60">
                           {t.description || t.message}
                         </p>
 
-                        <div className="flex items-center justify-between text-[11px] font-mono text-emerald-100/50 pt-1">
+                        <div className="flex items-center justify-between text-[11px] font-mono text-emerald-100/60 pt-1">
                           <span>Ticket ID: {t.id}</span>
                           <div className="flex items-center gap-3">
                             <span>{new Date(t.createdAt).toLocaleDateString()}</span>
@@ -1180,9 +1104,9 @@ export default function Dashboard({
                 ) : (
                   <div className="space-y-2">
                     {dbAuditLogs.map((log) => (
-                      <div key={log.id} className="p-3 bg-[#011a14] border border-[#064e3f] rounded-xl text-xs font-mono flex justify-between items-center">
+                      <div key={log.id} className="p-3 bg-[#032f26] border border-[#0c624f] rounded-xl text-xs font-mono flex justify-between items-center shadow-sm">
                         <span className="text-white">{log.action}</span>
-                        <span className="text-emerald-400/80 text-[11px]">{new Date(log.createdAt || log.timestamp).toLocaleString()}</span>
+                        <span className="text-emerald-300 text-[11px]">{new Date(log.createdAt || log.timestamp).toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
@@ -1196,8 +1120,8 @@ export default function Dashboard({
       {/* INSPECT REPORT MODAL */}
       {inspectedReport && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-[#02241d] border-2 border-[#064e3f] rounded-3xl max-w-lg w-full p-6 text-white space-y-5 shadow-2xl relative">
-            <div className="flex justify-between items-start border-b border-[#064e3f] pb-4">
+          <div className="bg-[#054337] border-2 border-[#0c624f] rounded-3xl max-w-lg w-full p-6 text-white space-y-5 shadow-2xl relative">
+            <div className="flex justify-between items-start border-b border-[#0c624f] pb-4">
               <div>
                 <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase font-mono tracking-wider ${
                   inspectedReport.reportType === 'Found' ? 'bg-[#45D153]/20 text-[#45D153] border border-[#45D153]/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
@@ -1208,46 +1132,46 @@ export default function Dashboard({
               </div>
               <button
                 onClick={() => setInspectedReport(null)}
-                className="p-1.5 rounded-lg bg-[#011a14] border border-[#064e3f] text-emerald-100 hover:text-white cursor-pointer"
+                className="p-1.5 rounded-lg bg-[#032f26] border border-[#0c624f] text-emerald-100 hover:text-white cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="space-y-3 text-xs font-mono">
-              <div className="bg-[#011a14] p-3 rounded-xl border border-[#064e3f] space-y-1">
-                <span className="text-emerald-400 font-bold">Reported Issue / Notes:</span>
+              <div className="bg-[#032f26] p-3 rounded-xl border border-[#0c624f] space-y-1">
+                <span className="text-emerald-300 font-bold">Reported Issue / Notes:</span>
                 <p className="text-emerald-100/90">{inspectedReport.description || 'No description provided.'}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 bg-[#011a14] p-3 rounded-xl border border-[#064e3f]">
+              <div className="grid grid-cols-2 gap-2 bg-[#032f26] p-3 rounded-xl border border-[#0c624f]">
                 <div>
-                  <span className="text-emerald-100/50 block">Finder / Reporter:</span>
+                  <span className="text-emerald-100/60 block">Finder / Reporter:</span>
                   <span className="font-bold text-white">{inspectedReport.finderName || 'Anonymous'}</span>
                 </div>
                 <div>
-                  <span className="text-emerald-100/50 block">Contact Phone:</span>
+                  <span className="text-emerald-100/60 block">Contact Phone:</span>
                   <span className="font-bold text-white">{inspectedReport.finderPhone || 'Not provided'}</span>
                 </div>
                 <div>
-                  <span className="text-emerald-100/50 block">Postcode:</span>
+                  <span className="text-emerald-100/60 block">Postcode:</span>
                   <span className="font-bold text-white">{inspectedReport.postcode || 'N/A'}</span>
                 </div>
                 <div>
-                  <span className="text-emerald-100/50 block">House / Street:</span>
+                  <span className="text-emerald-100/60 block">House / Street:</span>
                   <span className="font-bold text-white">{inspectedReport.houseNumber || ''} {inspectedReport.location || ''}</span>
                 </div>
               </div>
 
               {inspectedReport.photoUrl && (
-                <div className="bg-[#011a14] p-3 rounded-xl border border-[#064e3f] space-y-1">
-                  <span className="text-emerald-400 font-bold block mb-1">Attached Inspection Photo:</span>
-                  <img src={inspectedReport.photoUrl} alt="Bin report evidence" className="w-full h-40 object-cover rounded-lg border border-[#064e3f]" />
+                <div className="bg-[#032f26] p-3 rounded-xl border border-[#0c624f] space-y-1">
+                  <span className="text-emerald-300 font-bold block mb-1">Attached Inspection Photo:</span>
+                  <img src={inspectedReport.photoUrl} alt="Bin report evidence" className="w-full h-40 object-cover rounded-lg border border-[#0c624f]" />
                 </div>
               )}
             </div>
 
-            <div className="flex flex-col gap-2 pt-2 border-t border-[#064e3f]">
+            <div className="flex flex-col gap-2 pt-2 border-t border-[#0c624f]">
               <button
                 onClick={() => {
                   const targetBin = bins.find(b => b.serialNumber === inspectedReport.serialNumber);
@@ -1269,7 +1193,7 @@ export default function Dashboard({
                   setInspectedReport(null);
                   scrollToTabsSection('messages');
                 }}
-                className="w-full py-2 bg-[#011a14] hover:bg-[#064e3f] text-[#45D153] border border-[#064e3f] rounded-xl font-mono font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all"
+                className="w-full py-2 bg-[#032f26] hover:bg-[#064e3f] text-[#45D153] border border-[#0c624f] rounded-xl font-mono font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
                 <MessageSquare className="h-4 w-4" />
                 <span>Open Chat Feed for this Tag</span>

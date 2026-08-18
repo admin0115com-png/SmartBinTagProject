@@ -978,9 +978,16 @@ export default function RegisterBin({
               </div>
 
               <div className="bg-[#011a14] p-4 rounded-xl border border-[#064e3f] space-y-3">
-                <label className="block text-[10px] font-extrabold text-[#45D153] uppercase font-mono tracking-wider">Select Alarm Tone</label>
+                <label className="block text-[10px] font-extrabold text-[#45D153] uppercase font-mono tracking-wider">Select Alarm Tone ({ALARM_SOUNDS.length} options)</label>
                 <div className="flex gap-2">
-                  <select value={selectedAlarm} onChange={(e) => setSelectedAlarm(e.target.value)} className="flex-1 h-11 px-3 bg-[#02241d] border border-[#064e3f] rounded-xl text-xs text-white font-medium focus:outline-hidden focus:ring-1 focus:ring-[#45D153]">
+                  <select 
+                    value={selectedAlarm} 
+                    onChange={(e) => {
+                      setSelectedAlarm(e.target.value);
+                      playAlarmSoundPreview(e.target.value);
+                    }} 
+                    className="flex-1 h-11 px-3 bg-[#02241d] border border-[#064e3f] rounded-xl text-xs text-white font-medium focus:outline-hidden focus:ring-1 focus:ring-[#45D153] cursor-pointer"
+                  >
                     {ALARM_SOUNDS.map(sound => <option key={sound} value={sound}>{sound}</option>)}
                   </select>
                   <button type="button" onClick={() => playAlarmSoundPreview(selectedAlarm)} className="px-3 bg-[#064e3f] hover:bg-[#04352b] border border-[#45D153]/30 text-[#45D153] rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all">

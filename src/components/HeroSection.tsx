@@ -153,8 +153,12 @@ export default function HeroSection({
   }, [playBeep]);
 
   // ==== Derived Values ====
+  const welcomeTag = useMemo(() => {
+    return currentUser ? 'WELCOME BACK,' : 'WELCOME,';
+  }, [currentUser]);
+
   const displayName = useMemo(() => {
-    return currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'ALEX KNIGHT';
+    return currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'DEMO ACCOUNT - Login/SignUp Above';
   }, [currentUser]);
 
   const binCountLabel = useMemo(() => {
@@ -191,11 +195,22 @@ export default function HeroSection({
             <div className="w-full bg-[#04352b] border-l-4 border-[#45D153] rounded-r-2xl p-4.5 flex items-center justify-between shadow-lg border border-l-0 border-[#064e3f]">
               <div className="space-y-0.5">
                 <span className="text-[10px] font-black tracking-[0.22em] text-[#45D153] block uppercase font-mono">
-                  WELCOME BACK,
+                  {welcomeTag}
                 </span>
-                <h2 className="text-2xl font-black text-white tracking-tight uppercase font-sans">
-                  {displayName}
-                </h2>
+                {currentUser ? (
+                  <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight uppercase font-sans">
+                    {displayName}
+                  </h2>
+                ) : (
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <h2 className="text-base sm:text-xl font-black text-white tracking-tight uppercase font-sans">
+                      DEMO ACCOUNT
+                    </h2>
+                    <span className="text-[11px] sm:text-xs font-bold text-white uppercase tracking-wider">
+                      - LOGIN/SIGNUP ABOVE
+                    </span>
+                  </div>
+                )}
               </div>
               <div
                 className="relative cursor-pointer group"
@@ -525,7 +540,7 @@ export default function HeroSection({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
             <div className="bg-[#022c22] border border-[#064e3f] p-5 rounded-xl space-y-2">
               <div className="flex items-center gap-2 text-[#45D153] font-mono font-black text-xs">
                 <span className="w-6 h-6 rounded-full bg-[#45D153]/20 flex items-center justify-center text-xs">1</span>
@@ -553,6 +568,16 @@ export default function HeroSection({
               </div>
               <p className="text-xs text-gray-300 leading-snug">
                 Select <span className="text-white font-bold inline-flex items-center gap-1"><Plus className="h-3 w-3 text-[#45D153]" /> Add to Home Screen</span>. The green squircle icon with white <span className="text-white font-black font-sans bg-[#45D153] px-1 py-0.5 rounded text-[10px]">SBT</span> text will save to your phone screen!
+              </p>
+            </div>
+
+            <div className="bg-[#022c22] border border-[#064e3f] p-5 rounded-xl space-y-2">
+              <div className="flex items-center gap-2 text-[#45D153] font-mono font-black text-xs">
+                <span className="w-6 h-6 rounded-full bg-[#45D153]/20 flex items-center justify-center text-xs">4</span>
+                <span>SWITCH ON NOTIFICATIONS</span>
+              </div>
+              <p className="text-xs text-gray-300 leading-snug">
+                Make sure your phone notifications are switched on so you can be notified when to take out your bin.
               </p>
             </div>
           </div>
