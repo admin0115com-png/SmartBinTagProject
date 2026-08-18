@@ -1,0 +1,25 @@
+{
+  "name": "SmartBinTag | Notify & Secure Your Bin | SBTAPP",
+  "short_name": "SBTAPP",
+  "description": "SmartBinTag | Notify & Secure Your Bin | SBTAPP - The Digital Registration Plate for Your Wheelie Bin.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#01140e",
+  "theme_color": "#04352b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
