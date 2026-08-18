@@ -1,6 +1,0 @@
-{
-  "name": "Smart Bin Tag",
-  "description": "The Digital Registration Plate for Your Wheelie Bin. A complete platform to manage bin tags, receive reminders, report lost or damaged bins, and message bin owners anonymously.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
