@@ -158,7 +158,7 @@ export default function HeroSection({
   }, [currentUser]);
 
   const displayName = useMemo(() => {
-    return currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'DEMO ACCOUNT - Login/SignUp Above';
+    return currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'DEMO ACCOUNT - LOGIN/SIGNUP ABOVE';
   }, [currentUser]);
 
   const binCountLabel = useMemo(() => {
@@ -197,20 +197,9 @@ export default function HeroSection({
                 <span className="text-[10px] font-black tracking-[0.22em] text-[#45D153] block uppercase font-mono">
                   {welcomeTag}
                 </span>
-                {currentUser ? (
-                  <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight uppercase font-sans">
-                    {displayName}
-                  </h2>
-                ) : (
-                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    <h2 className="text-base sm:text-xl font-black text-white tracking-tight uppercase font-sans">
-                      DEMO ACCOUNT
-                    </h2>
-                    <span className="text-[11px] sm:text-xs font-bold text-white uppercase tracking-wider">
-                      - LOGIN/SIGNUP ABOVE
-                    </span>
-                  </div>
-                )}
+                <h2 className="text-base sm:text-2xl font-black text-white tracking-tight uppercase font-sans">
+                  {displayName}
+                </h2>
               </div>
               <div
                 className="relative cursor-pointer group"
