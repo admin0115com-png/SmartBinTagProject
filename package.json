@@ -10,10 +10,17 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.6.0",
-    "@nhost/nhost-js": "^3.0.0"
+    "@nhost/nhost-js": "^3.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "lucide-react": "^0.294.0",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^4.2.1"
   },
   "devDependencies": {
-    "vite": "^5.4.0",
-    "@vitejs/plugin-react": "^4.3.0"
+    "@vitejs/plugin-react": "^4.3.0",
+    "@tailwindcss/vite": "^4.0.0-alpha.14",
+    "tailwindcss": "^4.0.0-alpha.14",
+    "vite": "^5.4.0"
   }
 }
