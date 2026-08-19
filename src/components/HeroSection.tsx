@@ -522,7 +522,7 @@ export default function HeroSection({
         <div className="bg-[#011a14] border border-[#064e3f] rounded-[24px] p-4 sm:p-6 shadow-2xl space-y-6">
           <div className="rounded-2xl overflow-hidden border border-[#064e3f] shadow-lg max-w-4xl mx-auto">
             <img
-              src="/src/assets/images/save_app_three_phones_hand_1785956916628.jpg"
+              src="/images/save_app_three_phones_hand_1785956916628.jpg"
               alt="Save SmartBinTag App 3-Phone Guide with smartbintagapp.com, Bottom Share Button, and Green SBT App Icon"
               className="w-full h-auto object-cover block"
               referrerPolicy="no-referrer"
