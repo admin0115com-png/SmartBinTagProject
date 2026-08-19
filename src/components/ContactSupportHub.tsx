@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Headset, 
+  Headphones, 
   Mail, 
   MessageSquare, 
   Send, 
