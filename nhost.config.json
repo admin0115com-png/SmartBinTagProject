@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "config": {
-      "external": ["@google/generative-ai"]
-    }
-  }
-}
