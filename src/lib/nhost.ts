@@ -41,9 +41,9 @@ export interface CustomAuth {
  * Subdomain: sjpksyugwmepoxjjvzyq
  * Region: eu-central-1
  */
-const baseNhost = createClient({
-  subdomain: 'sjpksyugwmepoxjjvzyq',
-  region: 'eu-central-1',
+export const baseNhost = new NhostClient({
+  subdomain: 'sjpksyugwmepoxjjvzq',
+  region: 'eu-central-1'
 });
 
 // Implement the custom popup/redirect signInWithProvider method on the auth instance
