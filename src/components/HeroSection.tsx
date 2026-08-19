@@ -473,7 +473,7 @@ export default function HeroSection({
         </div>
         <div className="border border-[#064e3f] rounded-[24px] overflow-hidden shadow-2xl bg-[#011a14] relative">
           <img
-            src="/images/bin_tag_garden_mockup_1783859098816.jpg"
+            src="images/bin_tag_garden_mockup_1783859098816.jpg"
             alt="Smart Bin Tag App and Wheelie Bin Mockup"
             className="w-full h-auto object-cover block"
             referrerPolicy="no-referrer"
