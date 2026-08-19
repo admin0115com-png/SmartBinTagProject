@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "installDependencies": {
-      "packageManager": "npm install"
-    }
-  }
-}
