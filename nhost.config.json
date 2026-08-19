@@ -1,7 +1,7 @@
 {
   "functions": {
-    "installDependencies": {
-      "packageManager": "npm install"
+    "config": {
+      "external": ["@google/generative-ai"]
     }
   }
 }
