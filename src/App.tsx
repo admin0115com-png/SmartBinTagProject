@@ -927,5 +927,7 @@ export default function App() {
                       <input type="checkbox" checked={emailPref} onChange={(e) => setEmailPref(e.target.checked)} className="w-4 h-4 accent-[#45D153]" />
                     </label>
                     <label className="flex items-center justify-between cursor-pointer">
-                      <span className="text-sm text-emerald-200/90">Push Notifications</span>
-                       <input type="checkbox" checked={emailPref} onChange={(e) => setEmailPref(e.target.checked)} className="w-4 h-4 accent-[#45D153]"
+  <span className="text-sm text-emerald-200/90">Push Notifications</span>
+  <input type="checkbox" checked={pushPref} onChange={(e) => setPushPref(e.target.checked)} className="w-4 h-4 accent-[#45D153]" />
+</label>
+  
