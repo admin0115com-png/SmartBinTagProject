@@ -47,8 +47,8 @@ try {
   baseNhost = new NhostClient({
     subdomain: 'sjpksyugwmepoxjivzyq',
     region: 'eu-central-1'
-    storage: {
-      mode: 'web',
+     clientStorage: {
+      type: 'web',
     },
   });
   console.log('✅ Nhost connected successfully')
