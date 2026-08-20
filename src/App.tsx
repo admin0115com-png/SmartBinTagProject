@@ -950,7 +950,7 @@ export default function App() {
                 </div>
               </div>
             </div>
-      {route.view === 'legal-terms' && <LegalDocuments view="terms" setView={handleSetView} />}
+        {route.view === 'legal-terms' && <LegalDocuments view="terms" setView={handleSetView} />}
         {route.view === 'legal-privacy' && <LegalDocuments view="privacy" setView={handleSetView} />}
         {route.view === 'legal-cookies' && <LegalDocuments view="cookies" setView={handleSetView} />}
         {route.view === 'legal-acceptable-use' && <LegalDocuments view="acceptable-use" setView={handleSetView} />}
