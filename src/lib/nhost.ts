@@ -41,15 +41,10 @@ export interface CustomAuth {
  * Subdomain: sjpksyugwmepoxjivzyq
  * Region: eu-central-1
  */
-let baseNhost;
-
-try {
-  baseNhost = new NhostClient({
-    subdomain: 'sjpksyugwmepoxjivzyq',
-    region: 'eu-central-1'
-     clientStorage: {
-      type: 'web',
-    },
+export const baseNhost = new NhostClient({
+  subdomain: 'sjpksyugwmepoxjivzyq',
+  region: 'eu-central-1'
+});
   });
   console.log('✅ Nhost connected successfully')
 } catch (error) {
