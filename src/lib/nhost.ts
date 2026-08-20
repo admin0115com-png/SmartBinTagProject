@@ -38,14 +38,14 @@ export interface CustomAuth {
 
 /**
  * Initialize the Nhost client with the provided project details using the v4 createClient factory.
- * Subdomain: sjpksyugwmepoxjivzyq
+ * Subdomain: sjpksyugwmepoxjjvzyq
  * Region: eu-central-1
  */
 export const baseNhost = new NhostClient({
-  subdomain: 'sjpksyugwmepoxjivzyq',
+  subdomain: 'sjpksyugwmepoxjjvzq',
   region: 'eu-central-1'
 });
-  });
+
   console.log('✅ Nhost connected successfully')
 } catch (error) {
   console.error('❌ Nhost connection failed:', error)
