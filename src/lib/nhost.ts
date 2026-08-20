@@ -45,7 +45,7 @@ export const baseNhost = new NhostClient({
   subdomain: 'sjpksyugwmepoxjjvzq',
   region: 'eu-central-1'
 });
-
+  });
   console.log('✅ Nhost connected successfully')
 } catch (error) {
   console.error('❌ Nhost connection failed:', error)
