@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>| SmartBinTag | Notify &amp; Secure Your Bin | SBTAPP</title>
-    
+    <title>SmartBinTag | Notify & Secure Your Bin | SBTAPP</title>
+
     <!-- Favicon & SBT Brand Icons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="shortcut icon" href="/favicon.svg" />
@@ -16,14 +16,32 @@
     <meta name="apple-mobile-web-app-title" content="SBTAPP" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#04352b" />
-    <meta name="description" content="SmartBinTag | Notify &amp; Secure Your Bin | SBTAPP - The Digital Registration Plate for Your Wheelie Bin." />
+    <meta name="theme-color" content="#048352b" />
+    <meta name="description" content="SmartBinTag | Notify & Secure Your Bin | SBTAPP - The Digital Registration Plate for Your Wheelie Bin." />
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   </head>
   <body>
     <div id="root"></div>
+    <script>
+    // Fix Nhost sessionStorage.onChange error — runs BEFORE ANYTHING ELSE
+    (function() {
+      try {
+        if (typeof window !== 'undefined') {
+          const storage = window.sessionStorage;
+          if (storage && typeof storage.onChange === 'undefined') {
+            Object.defineProperty(storage, 'onChange', {
+              value: function() {},
+              writable: true,
+              configurable: true
+            });
+          }
+        }
+      } catch(e) {
+        // Ignore errors
+      }
+    })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
