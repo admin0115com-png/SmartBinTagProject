@@ -46,7 +46,15 @@ let baseNhost;
 try {
   baseNhost = new NhostClient({
     subdomain: 'sjpksyugwmepoxjivzyq',
-    region: 'eu-central-1'
+    region: 'eu-central-1',
+    auth: {
+      clientStorage: {
+        type: 'localStorage',
+        key: 'nhost-auth',
+      },
+      autoRefreshToken: true,
+      refreshIntervalTime: 300,
+    },
   });
   console.log('✅ Nhost connected successfully');
 } catch (error) {
@@ -55,7 +63,6 @@ try {
 }
 
 export { baseNhost };
-
 // Implement the custom popup/redirect signInWithProvider method on the auth instance
 (baseNhost.auth as any).signInWithProvider = async (
   params: { provider: string; options?: { redirectTo?: string } },
