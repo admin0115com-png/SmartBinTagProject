@@ -17,7 +17,7 @@ export function toUuid(idStr?: string | null): string | null {
   return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-4${hex.substring(13, 16)}-a${hex.substring(17, 20)}-${hex.substring(20, 32)}`;
 }
 
-import { createClient } from '@nhost/nhost-js'
+import { NhostClient } from '@nhost/nhost-js'
 
 // Define the custom Auth interface to extend the Nhost client typing
 export interface CustomAuth {
@@ -44,17 +44,10 @@ export interface CustomAuth {
 let baseNhost;
 
 try {
-  baseNhost = createClient({
+  baseNhost = new NhostClient({
     subdomain: 'sjpksyugwmepoxjivzyq',
     region: 'eu-central-1',
-    auth: {
-      clientStorage: {
-        type: 'localStorage',
-        key: 'nhost-auth',
-      },
-      autoRefreshToken: true,
-      refreshIntervalTime: 300,
-    },
+    // Remove auth.clientStorage — it's causing the issue
   });
   console.log('✅ Nhost connected successfully');
 } catch (error) {
