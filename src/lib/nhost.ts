@@ -44,7 +44,7 @@ export interface CustomAuth {
 let baseNhost;
 
 try {
-  baseNhost = new NhostClient({
+  baseNhost = createClient({
     subdomain: 'sjpksyugwmepoxjivzyq',
     region: 'eu-central-1',
     auth: {
