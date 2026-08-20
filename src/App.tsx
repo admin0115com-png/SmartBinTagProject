@@ -961,7 +961,7 @@ export default function App() {
         {route.view === 'contact' && <ContactSupportHub setView={handleSetView} currentUser={currentUser} />}
       </main>
       <CookieConsentBanner />
-      {activeAlarm && (
+      {activeAlarm &&  (
         <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
           <div className="bg-[#02241d] border-2 border-[#45D153] rounded-2xl p-6 max-w-md w-full shadow-2xl">
             <div className="text-center space-y-4">
