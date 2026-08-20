@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-```tsx
 import React, { useState, useEffect } from 'react';
 import { mockDb } from './mockDb';
 import { User, Bin, NotificationItem, BinReport, PrivateMessage, ReminderSchedule, BinTag, ActiveAlarmData } from './types';
