@@ -17,7 +17,7 @@ export function toUuid(idStr?: string | null): string | null {
   return `${hex.substring(0, 8)}-${hex.substring(8, 12)}-4${hex.substring(13, 16)}-a${hex.substring(17, 20)}-${hex.substring(20, 32)}`;
 }
 
-import { NhostClient } from '@nhost/nhost-js';
+import { createClient } from '@nhost/nhost-js'
 
 // Define the custom Auth interface to extend the Nhost client typing
 export interface CustomAuth {
