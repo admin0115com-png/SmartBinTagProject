@@ -987,41 +987,79 @@ export default function App() {
             </div>
           </div>
         </div>
-      )}
-      {showDeleteAccountModal && (
-        <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
-          <div className="bg-[#02241d] border-2 border-red-500/50 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-xl font-black text-red-400 mb-4">Delete Your Account?</h3>
-            <p className="text-sm text-gray-300 mb-4">This action is permanent and cannot be undone. All your data will be removed.</p>
-            <div className="space-y-3 mb-6">
-              <label className="flex items-start gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={deleteConfirmedTick}
-                  onChange={(e) => setDeleteConfirmedTick(e.target.checked)}
-                  className="mt-1 accent-red-500"
-                />
-                <span className="text-sm text-gray-300">I understand this will permanently delete my account and all associated data</span>
-              </label>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteAccountModal(false)}
-                className="flex-1 px-4 py-3 bg-[#064e3f] hover:bg-[#0a634f] text-white font-bold rounded-xl transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmAndExecuteDeleteAccount}
-                disabled={!deleteConfirmedTick}
-                className="flex-1 px-4 py-3 bg-red-700 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-xl transition-all"
-              >
-                Delete Account
-              </button>
-            </div>
-          </div>
+  )}
+  {route.view === 'legal-terms' && <LegalDocuments view="terms" setView={handleSetView} />}
+  {route.view === 'legal-privacy' && <LegalDocuments view="privacy" setView={handleSetView} />}
+  {route.view === 'legal-cookies' && <LegalDocuments view="cookies" setView={handleSetView} />}
+  {route.view === 'legal-acceptable-use' && <LegalDocuments view="acceptable-use" setView={handleSetView} />}
+  {route.view === 'legal-disclaimer' && <LegalDocuments view="disclaimer" setView={handleSetView} />}
+  {route.view === 'legal-sla' && <LegalDocuments view="sla" setView={handleSetView} />}
+  {route.view === 'contact' && <ContactSupportHub setView={handleSetView} currentUser={currentUser} />}
+</main>
+<CookieConsentBanner />
+{activeAlarm && (
+  <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
+    <div className="bg-[#02241d] border-2 border-[#45D153] rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <div className="text-center space-y-4">
+        <div className="w-16 h-16 mx-auto rounded-full bg-[#45D153]/20 flex items-center justify-center animate-pulse">
+          <Bell className="w-8 h-8 text-[#45D153]" />
         </div>
-      )}
+        <h3 className="text-xl font-black text-white">{activeAlarm.label}</h3>
+        <p className="text-sm text-emerald-200/80">Serial: {activeAlarm.serialNumber}</p>
+        <p className="text-lg font-bold text-[#45D153]">{activeAlarm.time}</p>
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={() => handleSnooze(15)}
+            className="flex-1 px-4 py-3 bg-[#064e3f] hover:bg-[#0a634f] text-white font-bold rounded-xl transition-all"
+          >
+            Snooze 15m
+          </button>
+          <button
+            onClick={handleDismissAlarm}
+            className="flex-1 px-4 py-3 bg-[#45D153] hover:bg-[#3bc048] text-[#04352b] font-black rounded-xl transition-all"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
     </div>
-  );
+  </div>
+)}
+{showDeleteAccountModal && (
+  <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
+    <div className="bg-[#02241d] border-2 border-red-500/50 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <h3 className="text-xl font-black text-red-400 mb-4">Delete Your Account?</h3>
+      <p className="text-sm text-gray-300 mb-4">This action is permanent and cannot be undone. All your data will be removed.</p>
+      <div className="space-y-3 mb-6">
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={deleteConfirmedTick}
+            onChange={(e) => setDeleteConfirmedTick(e.target.checked)}
+            className="mt-1 accent-red-500"
+          />
+          <span className="text-sm text-gray-300">I understand this will permanently delete my account and all associated data</span>
+        </label>
+      </div>
+      <div className="flex gap-3">
+        <button
+          onClick={() => setShowDeleteAccountModal(false)}
+          className="flex-1 px-4 py-3 bg-[#064e3f] hover:bg-[#0a634f] text-white font-bold rounded-xl transition-all"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={confirmAndExecuteDeleteAccount}
+          disabled={!deleteConfirmedTick}
+          className="flex-1 px-4 py-3 bg-red-700 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-xl transition-all"
+        >
+          Delete Account
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+</div>
+);
 }
+           
