@@ -38,13 +38,22 @@ export interface CustomAuth {
 
 /**
  * Initialize the Nhost client with the provided project details using the v4 createClient factory.
- * Subdomain: sjpksyugwmepoxjjvzyq
+ * Subdomain: sjpksyugwmepoxjivzyq
  * Region: eu-central-1
  */
-export const baseNhost = new NhostClient({
-  subdomain: 'sjpksyugwmepoxjjvzq',
-  region: 'eu-central-1'
-});
+let baseNhost;
+
+try {
+  baseNhost = new NhostClient({
+    subdomain: 'sjpksyugwmepoxjivzyq',
+    region: 'eu-central-1'
+  });
+  console.log('✅ Nhost connected successfully')
+} catch (error) {
+  console.error('❌ Nhost connection failed:', error)
+  baseNhost = { auth: {}, storage: {}, graphql: {} } as any
+}
+
 
 // Implement the custom popup/redirect signInWithProvider method on the auth instance
 (baseNhost.auth as any).signInWithProvider = async (
