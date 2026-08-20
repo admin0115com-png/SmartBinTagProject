@@ -1,3 +1,6 @@
+// 👇 THIS MUST BE THE VERY FIRST IMPORT — before Nhost, before React, before EVERYTHING
+import './polyfills';
+
 console.log('🔥 main.tsx is running!')
 console.log('root element:', document.getElementById('root'))
 
