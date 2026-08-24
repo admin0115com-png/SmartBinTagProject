@@ -1,4 +1,4 @@
-import { NhostClient } from '@nhost/nhost-js';
+import { createClient } from '@nhost/nhost-js';
 
 export function isValidUuid(str?: string | null): boolean {
   if (!str) return false;
@@ -37,14 +37,14 @@ export interface CustomAuth {
 }
 
 /**
- * Initialize the Nhost client with the provided project details.
+ * Initialize the Nhost client with the provided project details using the v4 createClient factory.
  * Subdomain: sjpksyugwmepoxjjvzyq
  * Region: eu-central-1
  */
 let baseNhost: any;
 
 try {
-  baseNhost = new NhostClient({
+  baseNhost = createClient({
     subdomain: 'sjpksyugwmepoxjjvzyq',
     region: 'eu-central-1',
   });
@@ -89,7 +89,7 @@ if (baseNhost && baseNhost.auth) {
       return new Promise((resolve) => {
         const checkInterval = setInterval(() => {
           try {
-            const session = baseNhost.sessionStorage.get();
+            const session = baseNhost.sessionStorage?.get?.();
             if (session) {
               clearInterval(checkInterval);
               try {
@@ -101,7 +101,7 @@ if (baseNhost && baseNhost.auth) {
 
             if (popupWindow.closed) {
               clearInterval(checkInterval);
-              const finalSession = baseNhost.sessionStorage.get();
+              const finalSession = baseNhost.sessionStorage?.get?.();
               if (finalSession) {
                 resolve({ session: finalSession, error: null });
               } else {
@@ -117,12 +117,12 @@ if (baseNhost && baseNhost.auth) {
                 try {
                   popupWindow.close();
                 } catch (err) {}
-                const finalSession = baseNhost.sessionStorage.get();
+                const finalSession = baseNhost.sessionStorage?.get?.();
                 resolve({ session: finalSession, error: null });
               }, 1200);
             }
           } catch (e) {
-            // Cross-origin checks are expected during oauth redirects
+            // OAuth redirect cross-origin checks
           }
         }, 500);
       });
@@ -193,7 +193,6 @@ interface BinData {
   status: string;
 }
 
-// Example Query: Get all bins registered to the active user
 export async function getMyBinsQuery(): Promise<BinData[]> {
   const GET_BINS_QUERY = `
     query GetMyBins {
@@ -211,19 +210,18 @@ export async function getMyBinsQuery(): Promise<BinData[]> {
       query: GET_BINS_QUERY
     });
     
-    if (response.body.errors) {
+    if (response.body?.errors) {
       console.error('GraphQL execution errors:', response.body.errors);
       throw new Error(response.body.errors[0]?.message || 'GraphQL error occurred');
     }
     
-    return response.body.data?.tags || [];
+    return response.body?.data?.tags || [];
   } catch (error) {
     console.error('Error fetching bins from Nhost:', error);
     throw error;
   }
 }
 
-// Example Mutation: Register a new smart bin tag
 export async function registerBinMutation(variables: {
   serialNumber: string;
   binType: string;
@@ -249,12 +247,12 @@ export async function registerBinMutation(variables: {
       variables,
     });
 
-    if (response.body.errors) {
+    if (response.body?.errors) {
       console.error('GraphQL execution errors:', response.body.errors);
       throw new Error(response.body.errors[0]?.message || 'GraphQL mutation error occurred');
     }
 
-    return response.body.data;
+    return response.body?.data;
   } catch (error) {
     console.error('Error registering bin in Nhost:', error);
     throw error;
