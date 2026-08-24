@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
 
     const textPrompt = prompt || "Hello!";
 
-    // Call Gemini directly using native fetch (No npm package needed)
+    // Call Gemini directly using native fetch (no external SDK required)
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
