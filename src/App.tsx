@@ -984,28 +984,29 @@ export default function App() {
                 >
                   Dismiss
                 </button>
-              </div>
-            </div>
           </div>
         </div>
+      </div>
+    </div>
   )}
+
   {route.view === 'legal-terms' && <LegalDocuments view="terms" setView={handleSetView} />}
   {route.view === 'legal-privacy' && <LegalDocuments view="privacy" setView={handleSetView} />}
   {route.view === 'legal-cookies' && <LegalDocuments view="cookies" setView={handleSetView} />}
   {route.view === 'legal-acceptable-use' && <LegalDocuments view="acceptable-use" setView={handleSetView} />}
   {route.view === 'legal-disclaimer' && <LegalDocuments view="disclaimer" setView={handleSetView} />}
   {route.view === 'legal-sla' && <LegalDocuments view="sla" setView={handleSetView} />}
-  {route.view === 'legal-sla' && <LegalDocuments view="sla" setView={handleSetView} />}
   {route.view === 'contact' && <ContactSupportHub setView={handleSetView} currentUser={currentUser} />}
-   )}
+
+      </div>
     </div>
-   </div>
   </div>
 </main>
 
 <CookieConsentBanner />
 
 {activeAlarm && (
+
   <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
     <div className="bg-[#02241d] border-2 border-[#45D153] rounded-2xl p-6 max-w-md w-full shadow-2xl">
       <div className="text-center space-y-4">
