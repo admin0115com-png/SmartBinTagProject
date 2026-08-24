@@ -1000,8 +1000,8 @@ export default function App() {
 
       </div>
     </div>
-  </div>
-</main>
+    </div>
+    </main>
 
 <CookieConsentBanner />
 
