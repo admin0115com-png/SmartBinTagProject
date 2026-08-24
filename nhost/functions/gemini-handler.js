@@ -1,27 +1,45 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+module.exports = async (req, res) => {
+  // CORS Headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-exports.handler = async (event, context) => {
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const { prompt } = req.body || {};
+    const apiKey = process.env.GEMINI_API_KEY;
 
-    const body = JSON.parse(event.body || "{}");
-    const prompt = body.prompt || "Hello!";
+    if (!apiKey) {
+      return res.status(500).json({ error: 'GEMINI_API_KEY is not configured' });
+    }
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const textPrompt = prompt || "Hello!";
 
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ success: true, reply: text })
-    };
+    // Call Gemini directly using native fetch (No npm package needed)
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: textPrompt }] }],
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      return res.status(response.status).json({ success: false, error: errText });
+    }
+
+    const data = await response.json();
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    return res.status(200).json({ success: true, reply });
   } catch (error) {
-    return {
-      statusCode: 500,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ success: false, error: error.message })
-    };
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
