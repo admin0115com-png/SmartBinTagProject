@@ -999,8 +999,8 @@ export default function App() {
   {route.view === 'contact' && <ContactSupportHub setView={handleSetView} currentUser={currentUser} />}
 
       </div>
-    </div>
-    </div>
+        </div>
+      </div>
     </main>
 
 <CookieConsentBanner />
