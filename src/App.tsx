@@ -116,9 +116,10 @@ export default function App() {
     registerServiceWorker();
   }, []);
 
+  // Update document title for browser tabs with clean brand pattern
   useEffect(() => {
     const viewTitleMap: Record<string, string> = {
-      home: 'LOGO',
+      home: 'Home',
       dashboard: 'Dashboard',
       scan: 'Scan Bin Tag',
       register: 'Sign Up',
@@ -134,8 +135,12 @@ export default function App() {
       'legal-disclaimer': 'Legal Disclaimer',
       'legal-sla': 'Service Level Agreement',
     };
-    const section = viewTitleMap[route.view] || 'LOGO';
-    document.title = `${section} | SmartBinTag | Notify & Secure Your Bin | SBTAPP`;
+    const section = viewTitleMap[route.view] || 'Home';
+    if (section === 'Home') {
+      document.title = 'SmartBinTag | Notify & Secure Your Bin | SBTAPP';
+    } else {
+      document.title = `${section} | SmartBinTag | Notify & Secure Your Bin | SBTAPP`;
+    }
   }, [route.view]);
 
   useEffect(() => {
@@ -874,4 +879,3 @@ export default function App() {
     </div>
   );
 }
-           
