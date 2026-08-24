@@ -1,14 +1,26 @@
-const { NhostClient } = require('@nhost/nhost-js');
+module.exports = async (req, res) => {
+  // CORS Headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-const nhost = new NhostClient({
-  subdomain: process.env.NHOST_SUBDOMAIN,
-  region: process.env.NHOST_REGION
-});
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
-exports.handler = async () => {
   try {
-    // Find all pending alerts that are due now
-    const { data, error } = await nhost.graphql.request(`
+    const adminSecret = process.env.NHOST_ADMIN_SECRET || process.env.HASURA_GRAPHQL_ADMIN_SECRET;
+    const subdomain = process.env.NHOST_SUBDOMAIN || 'sjpksyugwmepoxjjvzyq';
+    const region = process.env.NHOST_REGION || 'eu-central-1';
+    const graphqlUrl = process.env.NHOST_GRAPHQL_URL || `https://${subdomain}.hasura.${region}.nhost.run/v1/graphql`;
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (adminSecret) {
+      headers['x-hasura-admin-secret'] = adminSecret;
+    }
+
+    // 1. Find all pending alerts that are due now
+    const getQuery = `
       query GetDueAlerts {
         collection_alerts(
           where: {
@@ -18,31 +30,52 @@ exports.handler = async () => {
               { next_main_trigger: { _lte: "now()" } }
             ]
           }
-        ) { id user_id tag_id notify_push notify_email notify_inapp }
-      }
-    `);
-
-    if (error) throw error;
-    const alerts = data.collection_alerts;
-
-    // Mark each alert as triggered — database handles all auto‑updates
-    for (const alert of alerts) {
-      await nhost.graphql.request(`
-        mutation FireAlert($id: uuid!) {
-          update_collection_alerts_by_pk(
-            pk_columns: { id: $id },
-            _set: { status: "triggered" }
-          ) { id }
+        ) {
+          id
+          user_id
+          tag_id
+          notify_push
+          notify_email
+          notify_inapp
         }
-      `, { variables: { id: alert.id } });
+      }
+    `;
+
+    const fetchResponse = await fetch(graphqlUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query: getQuery }),
+    });
+
+    const responseData = await fetchResponse.json();
+    const alerts = responseData?.data?.collection_alerts || [];
+
+    // 2. Mark each alert as triggered
+    const updateMutation = `
+      mutation FireAlert($id: uuid!) {
+        update_collection_alerts_by_pk(
+          pk_columns: { id: $id },
+          _set: { status: "triggered" }
+        ) {
+          id
+        }
+      }
+    `;
+
+    for (const alert of alerts) {
+      await fetch(graphqlUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          query: updateMutation,
+          variables: { id: alert.id },
+        }),
+      });
     }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ success: true, processed: alerts.length })
-    };
+    return res.status(200).json({ success: true, processed: alerts.length });
   } catch (err) {
     console.error("Trigger Error:", err);
-    return { statusCode: 500, body: err.message };
+    return res.status(500).json({ success: false, error: err.message || 'Internal error' });
   }
 };
