@@ -998,8 +998,9 @@ export default function App() {
   {route.view === 'legal-sla' && <LegalDocuments view="sla" setView={handleSetView} />}
   {route.view === 'contact' && <ContactSupportHub setView={handleSetView} currentUser={currentUser} />}
 
+                </div>
+        </div>
       </div>
-    </div>
     </main>
 
 <CookieConsentBanner />
