@@ -126,7 +126,7 @@ export default function App() {
       report: 'Report Bin',
       admin: 'Admin Panel',
       contact: 'Support Hub',
-      settings: 'Account Settings',
+      settings: 'Account Preferences',
       'legal-terms': 'Terms of Service',
       'legal-privacy': 'Privacy Policy',
       'legal-cookies': 'Cookie Policy',
@@ -139,7 +139,7 @@ export default function App() {
   }, [route.view]);
 
   useEffect(() => {
-    const unsubscribe = nhost.sessionStorage.onChange((session) => {
+    const unsubscribe = nhost.sessionStorage.onChange((session: any) => {
       if (session?.user) {
         const email = session.user.email || '';
         if (email) {
@@ -215,194 +215,6 @@ export default function App() {
     return () => unsubscribeDb();
   }, []);
 
-  const playSynthesizedAlarm = (toneName: string) => {
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return;
-      let ctx = (window as any).__sbtAudioCtx;
-      if (!ctx || ctx.state === 'closed') {
-        ctx = new AudioContextClass();
-        (window as any).__sbtAudioCtx = ctx;
-      }
-      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      if (toneName === 'Chime Classic') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
-      } else if (toneName === 'Digital Alert') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(800, ctx.currentTime);
-        osc.frequency.setValueAtTime(600, ctx.currentTime + 0.1);
-        osc.frequency.setValueAtTime(800, ctx.currentTime + 0.2);
-      } else if (toneName === 'Eco Sweep') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(300, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.3);
-      } else if (toneName === 'Emerald Ping') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(987.77, ctx.currentTime);
-      } else if (toneName === 'Bin Alert High') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(1200, ctx.currentTime);
-      } else if (toneName === 'Solar Pulse') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(440, ctx.currentTime);
-        gain.gain.setValueAtTime(0.5, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-      } else if (toneName === 'District Whistle') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(1500, ctx.currentTime);
-      } else if (toneName === 'Radar Echo') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600, ctx.currentTime);
-        osc.frequency.setValueAtTime(100, ctx.currentTime + 0.08);
-        osc.frequency.setValueAtTime(600, ctx.currentTime + 0.16);
-      } else if (toneName === 'Nhost Sync Ping') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1046.50, ctx.currentTime);
-      } else if (toneName === 'Loud Alarm Siren') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(600, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(1000, ctx.currentTime + 0.15);
-        osc.frequency.linearRampToValueAtTime(600, ctx.currentTime + 0.3);
-        gain.gain.setValueAtTime(0.22, ctx.currentTime);
-      } else if (toneName === 'Fire Alarm Sound') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(1200, ctx.currentTime);
-        osc.frequency.setValueAtTime(0, ctx.currentTime + 0.1);
-        osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.15);
-        osc.frequency.setValueAtTime(0, ctx.currentTime + 0.25);
-        osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.3);
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-      } else if (toneName === 'Alarm Panic Sound') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(900, ctx.currentTime);
-        osc.frequency.setValueAtTime(1400, ctx.currentTime + 0.08);
-        osc.frequency.setValueAtTime(900, ctx.currentTime + 0.16);
-        osc.frequency.setValueAtTime(1400, ctx.currentTime + 0.24);
-        osc.frequency.setValueAtTime(900, ctx.currentTime + 0.32);
-        gain.gain.setValueAtTime(0.24, ctx.currentTime);
-      } else {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(329.63, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.25);
-      }
-      gain.gain.setValueAtTime(0.85, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.85);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.85);
-    } catch (e) {}
-  };
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (activeAlarmBin) return;
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const currentDateStrLocal = `${year}-${month}-${day}`;
-      let currentDateStrUTC = '';
-      try {
-        currentDateStrUTC = now.toISOString().split('T')[0];
-      } catch (err) {
-        currentDateStrUTC = currentDateStrLocal;
-      }
-      let hours = now.getHours();
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      const hours12 = hours % 12 ? hours % 12 : 12;
-      const currentTimeStr12 = `${String(hours12).padStart(2, '0')}:${minutes} ${ampm}`;
-      const currentTimeStr24 = `${String(hours).padStart(2, '0')}:${minutes}`;
-      const currentMinuteKey = `${currentDateStrLocal}-${currentTimeStr12}`;
-
-      const checkTimeMatch = (storedTime: string | undefined, current12hr: string, current24hr: string) => {
-        if (!storedTime) return false;
-        const s = storedTime.trim().replace(/\s+/g, '').toLowerCase();
-        const c12 = current12hr.trim().replace(/\s+/g, '').toLowerCase();
-        const c24 = current24hr.trim().replace(/\s+/g, '').toLowerCase();
-        if (s === c12 || s === c24) return true;
-        const getMins = (t: string) => {
-          const isAp = t.includes('am') || t.includes('pm');
-          if (isAp) {
-            const m = t.match(/(\d+):(\d+)(am|pm)/);
-            if (!m) return -1;
-            let h = parseInt(m[1], 10);
-            const mn = parseInt(m[2], 10);
-            const ap = m[3];
-            if (ap === 'pm' && h < 12) h += 12;
-            if (ap === 'am' && h === 12) h = 0;
-            return h * 60 + mn;
-          } else {
-            const m = t.match(/(\d+):(\d+)/);
-            if (!m) return -1;
-            const h = parseInt(m[1], 10);
-            const mn = parseInt(m[2], 10);
-            return h * 60 + mn;
-          }
-        };
-        const sm = getMins(s);
-        const cm12 = getMins(c12);
-        const cm24 = getMins(c24);
-        return sm !== -1 && (sm === cm12 || sm === cm24);
-      };
-
-      for (const bin of bins) {
-        if (bin.beforeCollectionEnabled && (bin.beforeCollectionDate === currentDateStrLocal || bin.beforeCollectionDate === currentDateStrUTC)) {
-          if (checkTimeMatch(bin.beforeCollectionTime, currentTimeStr12, currentTimeStr24)) {
-            const alarmId = `${bin.binId}-before-${currentMinuteKey}`;
-            const snoozeKey = `${bin.binId}-before`;
-            const isSnoozed = snoozedAlarms[snoozeKey] && Date.now() < snoozedAlarms[snoozeKey];
-            if (!dismissedAlarms.includes(alarmId) && !isSnoozed) {
-              const title = `BEFORE COLLECTION ALERT: ${bin.binType.toUpperCase()} BIN (${bin.serialNumber})`;
-              const body = `Attention! Put out your ${bin.colorName} ${bin.binType} bin for collection at ${bin.address || 'your address'}. Alert set for ${bin.beforeCollectionTime}.`;
-              const tone = bin.alarmTone || 'Chime Classic';
-              setActiveAlarm({
-                serialNumber: bin.serialNumber,
-                label: 'Evening Before Collection Alarm',
-                tone,
-                time: bin.beforeCollectionTime || currentTimeStr12
-              });
-              if (currentUser) {
-                mockDb.addNotification(currentUser.uid, 'Collection Reminder', title, body, '/');
-                syncCollectionAlertToNhost(currentUser.uid, bin.binId, 'BEFORE_COLLECTION', title, body);
-              }
-              setDismissedAlarms(prev => [...prev, alarmId]);
-            }
-          }
-        }
-        if (bin.collectionDayEnabled && (bin.collectionDayDate === currentDateStrLocal || bin.collectionDayDate === currentDateStrUTC)) {
-          if (checkTimeMatch(bin.collectionDayTime, currentTimeStr12, currentTimeStr24)) {
-            const alarmId = `${bin.binId}-day-${currentMinuteKey}`;
-            const snoozeKey = `${bin.binId}-day`;
-            const isSnoozed = snoozedAlarms[snoozeKey] && Date.now() < snoozedAlarms[snoozeKey];
-            if (!dismissedAlarms.includes(alarmId) && !isSnoozed) {
-              const title = `COLLECTION DAY ALERT: ${bin.binType.toUpperCase()} BIN (${bin.serialNumber})`;
-              const body = `Reminder: Today is collection day for your ${bin.colorName} ${bin.binType} bin at ${bin.address || 'your address'}. Collection time: ${bin.collectionDayTime}.`;
-              const tone = bin.alarmTone || 'Chime Classic';
-              setActiveAlarm({
-                serialNumber: bin.serialNumber,
-                label: 'Collection Day Morning Alarm',
-                tone,
-                time: bin.collectionDayTime || currentTimeStr12
-              });
-              if (currentUser) {
-                mockDb.addNotification(currentUser.uid, 'Collection Reminder', title, body, '/');
-                syncCollectionAlertToNhost(currentUser.uid, bin.binId, 'COLLECTION_DAY', title, body);
-              }
-              setDismissedAlarms(prev => [...prev, alarmId]);
-            }
-          }
-        }
-      }
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [bins, activeAlarmBin, dismissedAlarms, snoozedAlarms]);
-
   const handleSnooze = (minutes: number = 15) => {
     if (!activeAlarmBin || !activeAlarmType) return;
     const typeKey = activeAlarmType === 'Before Collection' ? 'before' : 'day';
@@ -413,10 +225,14 @@ export default function App() {
     }));
     setActiveAlarmBin(null);
     setActiveAlarmType(null);
+    setActiveAlarm(null);
   };
 
   const handleDismissAlarm = () => {
-    if (!activeAlarmBin || !activeAlarmType) return;
+    if (!activeAlarmBin || !activeAlarmType) {
+      setActiveAlarm(null);
+      return;
+    }
     const typeKey = activeAlarmType === 'Before Collection' ? 'before' : 'day';
     const now = new Date();
     const year = now.getFullYear();
@@ -434,6 +250,7 @@ export default function App() {
     setDismissedAlarms(prev => [...prev, alarmId]);
     setActiveAlarmBin(null);
     setActiveAlarmType(null);
+    setActiveAlarm(null);
   };
 
   const handleSetView = (view: string, params?: Record<string, any>) => {
@@ -600,7 +417,7 @@ export default function App() {
     try {
       mockDb.deleteUser(currentUser.uid);
       try {
-        await nhost.auth.signOut({});
+        await nhost.auth.signOut();
       } catch (err) {}
       localStorage.removeItem('sbt_logged_in_uid');
       setCurrentUser(null);
@@ -609,7 +426,7 @@ export default function App() {
       setDeleteFeedback('');
       setDeleteConfirmedTick(false);
       setRoute({ view: 'home' });
-      alert('Your account, registered bin tags, collection alerts, support tickets, messages, and reports have been permanently deleted from the web app and Nhost / Hasura database.');
+      alert('Your account, registered bin tags, collection alerts, support tickets, messages, and reports have been permanently deleted.');
     } catch (err: any) {
       alert('Error deleting account: ' + (err?.message || 'Unknown error'));
     }
@@ -642,11 +459,11 @@ export default function App() {
           </div>
         )}
         {launchStep === 3 && (
-          <div className="w-full max-w-sm sm:max-w-md mx-4 p-8 bg-[#02241d]/90 border border-[#064e3f] rounded-3xl shadow-2xl space-y-6 text-center animate-in fade-in slide-in-from-bottom-6 duration-500">
+          <div className="w-full max-w-sm sm:max-w-md mx-4 p-8 bg-[#02241d]/90 border border-[#064e3f] rounded-3xl shadow-2xl space-y-6 text-center animate-in fade-in slide-from-bottom-6 duration-500">
             <div className="space-y-2">
               <span className="text-[10px] text-[#45D153] font-mono tracking-[0.3em] font-bold uppercase block">DISTRICT PLATE SYSTEM</span>
               <h2 className="text-2xl sm:text-3xl font-black text-white font-sans tracking-tight">Welcome to Smart Bin Tag</h2>
-              <p className="text-xs text-emerald-300/60 font-sans max-w-xs mx-auto">Initializing local security databases and cloud profiles with real-time Nhost syncing...</p>
+              <p className="text-xs text-emerald-300/60 font-sans max-w-xs mx-auto">Initializing local security databases and cloud profiles...</p>
             </div>
             <div className="space-y-2.5">
               <div className="w-full h-2.5 bg-[#011a14] border border-[#064e3f]/60 rounded-full overflow-hidden p-0.5">
@@ -675,6 +492,7 @@ export default function App() {
         activeAlarm={activeAlarm}
         setActiveAlarm={setActiveAlarm}
       />
+
       <NotificationCenter 
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
@@ -684,6 +502,7 @@ export default function App() {
         onDelete={handleDeleteNotification}
         setView={handleSetView}
       />
+
       <main className="flex-1">
         {route.view === 'home' && (
           <HeroSection 
@@ -694,6 +513,7 @@ export default function App() {
             onRefresh={syncLocalDatabaseState}
           />
         )}
+
         {route.view === 'login' && (
           <Auth 
             initialMode="login"
@@ -702,6 +522,7 @@ export default function App() {
             setView={handleSetView}
           />
         )}
+
         {route.view === 'register' && (
           <Auth 
             initialMode="register"
@@ -710,6 +531,7 @@ export default function App() {
             setView={handleSetView}
           />
         )}
+
         {currentUser && route.view === 'dashboard' && (
           <Dashboard 
             currentUser={currentUser}
@@ -720,6 +542,7 @@ export default function App() {
             onOpenNotifications={() => setIsNotificationsOpen(true)}
           />
         )}
+
         {currentUser && route.view === 'my-bins' && (
           <MyBins 
             ownerId={currentUser.uid}
@@ -731,6 +554,7 @@ export default function App() {
             initialAction={route.action}
           />
         )}
+
         {currentUser && route.view === 'register-bin' && (
           <RegisterBin 
             ownerId={currentUser.uid}
@@ -739,6 +563,7 @@ export default function App() {
             setView={handleSetView}
           />
         )}
+
         {route.view === 'report-found' && (
           <Reports 
             initialAction="found"
@@ -747,6 +572,7 @@ export default function App() {
             onRefresh={syncLocalDatabaseState}
           />
         )}
+
         {route.view === 'report-damage' && (
           <Reports 
             initialAction="damaged"
@@ -755,6 +581,7 @@ export default function App() {
             onRefresh={syncLocalDatabaseState}
           />
         )}
+
         {(route.view === 'report-message' || route.view === 'chat-feed') && (
           <Reports 
             initialAction="found"
@@ -763,6 +590,7 @@ export default function App() {
             onRefresh={syncLocalDatabaseState}
           />
         )}
+
         {currentUser && currentUser.accountType === 'admin' && route.view === 'admin' && (
           <AdminPanel 
             users={users}
@@ -774,19 +602,23 @@ export default function App() {
             onRefresh={syncLocalDatabaseState}
           />
         )}
+
         {currentUser && route.view === 'settings' && (
           <div className="max-w-xl mx-auto px-4 py-12 select-none">
             <div className="bg-[#02241d]/90 rounded-2xl border border-[#064e3f] shadow-2xl p-8 sm:p-10 space-y-6 text-white">
+              
               <div className="border-b border-[#064e3f] pb-4">
                 <h2 className="text-xl font-extrabold text-white tracking-tight uppercase">Account Preferences</h2>
                 <p className="text-xs text-emerald-100/70 mt-1">Configure profile details and customize collection reminder alerts.</p>
               </div>
+
               {settingsSuccess && (
                 <div className="p-3.5 bg-[#45D153]/10 border border-[#45D153]/30 text-[#45D153] rounded-xl text-xs font-medium flex items-center gap-1.5">
                   <CheckCircle className="h-4.5 w-4.5 text-[#45D153]" />
                   <span>{settingsSuccess}</span>
                 </div>
               )}
+
               <form onSubmit={handleUpdateProfile} className="space-y-5">
                 <div className="bg-[#011a14] border border-[#064e3f] rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
@@ -802,6 +634,7 @@ export default function App() {
                       <span>{isAvatarPickerOpen ? 'Hide Options' : 'Change Avatar'}</span>
                     </button>
                   </div>
+
                   <div className="flex items-center gap-3 pt-1">
                     <div className="relative">
                       {profilePhoto ? (
@@ -824,9 +657,12 @@ export default function App() {
                       <p className="text-xs font-bold text-white uppercase font-sans">
                         {currentUser.accountType === 'admin' ? 'Administrator Account Avatar' : 'Homeowner Profile Avatar'}
                       </p>
-                      <p className="text-[10px] text-emerald-400/70 font-mono">Saves permanently across all your login sessions</p>
+                      <p className="text-[10px] text-emerald-400/70 font-mono">
+                        Saves permanently across all your login sessions
+                      </p>
                     </div>
                   </div>
+
                   {isAvatarPickerOpen && (
                     <div className="pt-3 border-t border-[#064e3f]/60 space-y-4 animate-in fade-in duration-200">
                       <div>
@@ -839,7 +675,9 @@ export default function App() {
                                 key={idx}
                                 type="button"
                                 onClick={() => handleSelectAvatarInSettings(url)}
-                                className={`relative rounded-full aspect-square border-2 transition-all p-0.5 overflow-hidden hover:scale-105 active:scale-95 cursor-pointer bg-[#04352b] ${isSelected ? 'border-[#45D153] ring-2 ring-[#45D153]/30' : 'border-[#064e3f] hover:border-emerald-400/50'}`}
+                                className={`relative rounded-full aspect-square border-2 transition-all p-0.5 overflow-hidden hover:scale-105 active:scale-95 cursor-pointer bg-[#04352b] ${
+                                  isSelected ? 'border-[#45D153] ring-2 ring-[#45D153]/30' : 'border-[#064e3f] hover:border-emerald-400/50'
+                                }`}
                                 title={`Preset ${idx + 1}`}
                               >
                                 <img
@@ -850,8 +688,8 @@ export default function App() {
                                   loading="lazy"
                                 />
                                 {isSelected && (
-                                  <span className="absolute inset-0 flex items-center justify-center bg-[#45D153]/40 rounded-full">
-                                    <Check className="w-4 h-4 text-white font-bold" />
+                                  <span className="absolute bottom-0 right-0 bg-[#45D153] text-[#04352b] rounded-full p-0.5 border border-[#02241d]">
+                                    <Check className="h-2.5 w-2.5 font-black" />
                                   </span>
                                 )}
                               </button>
@@ -859,6 +697,7 @@ export default function App() {
                           })}
                         </div>
                       </div>
+
                       <div className="space-y-2 pt-2">
                         <span className="text-[10px] text-emerald-400 font-mono tracking-widest uppercase font-bold block">Upload Custom Photo</span>
                         <label className="flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-[#064e3f] rounded-lg cursor-pointer hover:border-[#45D153]/50 transition-colors">
@@ -878,6 +717,7 @@ export default function App() {
                     </div>
                   )}
                 </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-emerald-300/80 uppercase tracking-wide">First Name</label>
@@ -898,6 +738,7 @@ export default function App() {
                     />
                   </div>
                 </div>
+
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-emerald-300/80 uppercase tracking-wide">Phone Number</label>
                   <input
@@ -907,6 +748,7 @@ export default function App() {
                     className="w-full px-3 py-2 bg-[#011a14] border border-[#064e3f] rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-[#45D153] focus:border-[#45D153]"
                   />
                 </div>
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-emerald-300/80 uppercase tracking-wide">Postcode</label>
@@ -919,40 +761,43 @@ export default function App() {
                     className="w-full px-3 py-2 bg-[#011a14] border border-[#064e3f] rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-[#45D153] focus:border-[#45D153]"
                   />
                 </div>
+
                 <div className="bg-[#011a14] border border-[#064e3f] rounded-xl p-4 space-y-3">
                   <span className="text-[10px] font-black tracking-widest text-[#45D153] uppercase font-mono block">Notification Preferences</span>
                   <div className="space-y-2">
                     <label className="flex items-center justify-between cursor-pointer">
                       <span className="text-sm text-emerald-200/90">Email Notifications</span>
                       <input type="checkbox" checked={emailPref} onChange={(e) => setEmailPref(e.target.checked)} className="w-4 h-4 accent-[#45D153]" />
-                                          </label>
-                      <label className="flex items-center justify-between cursor-pointer">
-                        <span className="text-sm text-emerald-200/90">In-App Notifications</span>
-                        <input type="checkbox" checked={inAppPref} onChange={(e) => setInAppPref(e.target.checked)} className="w-4 h-4 accent-[#45D153]" />
-                      </label>
-                    </div>
+                    </label>
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-sm text-emerald-200/90">In-App Notifications</span>
+                      <input type="checkbox" checked={inAppPref} onChange={(e) => setInAppPref(e.target.checked)} className="w-4 h-4 accent-[#45D153]" />
+                    </label>
                   </div>
-                  <button
-                    type="submit"
-                    className="w-full px-4 py-3 bg-[#45D153] hover:bg-[#3bc048] text-[#04352b] font-black rounded-xl transition-all shadow-lg"
-                  >
-                    Save & Update Settings
-                  </button>
-                </form>
-                <div className="border-t border-[#064e3f] pt-6 mt-6">
-                  <h3 className="text-sm font-bold text-red-400 uppercase tracking-wide mb-3">Danger Zone</h3>
-                  <button
-                    onClick={handleDeleteAccount}
-                    className="w-full px-4 py-3 bg-red-900/30 hover:bg-red-800/50 border border-red-500/50 text-red-300 font-bold rounded-xl transition-all"
-                  >
-                    Delete My Account
-                  </button>
                 </div>
+
+                <button
+                  type="submit"
+                  className="w-full px-4 py-3 bg-[#45D153] hover:bg-[#3bc048] text-[#04352b] font-black rounded-xl transition-all shadow-lg cursor-pointer"
+                >
+                  Save & Update Settings
+                </button>
+              </form>
+
+              <div className="border-t border-[#064e3f] pt-6 mt-6">
+                <h3 className="text-sm font-bold text-red-400 uppercase tracking-wide mb-3">Danger Zone</h3>
+                <button
+                  onClick={handleDeleteAccount}
+                  className="w-full px-4 py-3 bg-red-900/30 hover:bg-red-800/50 border border-red-500/50 text-red-300 font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  Delete My Account
+                </button>
               </div>
             </div>
+          </div>
         )}
+
         {route.view === 'legal-terms' && <LegalDocuments view="terms" setView={handleSetView} />}
-        
         {route.view === 'legal-privacy' && <LegalDocuments view="privacy" setView={handleSetView} />}
         {route.view === 'legal-cookies' && <LegalDocuments view="cookies" setView={handleSetView} />}
         {route.view === 'legal-acceptable-use' && <LegalDocuments view="acceptable-use" setView={handleSetView} />}
@@ -960,8 +805,10 @@ export default function App() {
         {route.view === 'legal-sla' && <LegalDocuments view="sla" setView={handleSetView} />}
         {route.view === 'contact' && <ContactSupportHub setView={handleSetView} currentUser={currentUser} />}
       </main>
+
       <CookieConsentBanner />
-      {activeAlarm &&  (
+
+      {activeAlarm && (
         <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
           <div className="bg-[#02241d] border-2 border-[#45D153] rounded-2xl p-6 max-w-md w-full shadow-2xl">
             <div className="text-center space-y-4">
@@ -974,101 +821,57 @@ export default function App() {
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => handleSnooze(15)}
-                  className="flex-1 px-4 py-3 bg-[#064e3f] hover:bg-[#0a634f] text-white font-bold rounded-xl transition-all"
+                  className="flex-1 px-4 py-3 bg-[#064e3f] hover:bg-[#0a634f] text-white font-bold rounded-xl transition-all cursor-pointer"
                 >
                   Snooze 15m
                 </button>
                 <button
                   onClick={handleDismissAlarm}
-                  className="flex-1 px-4 py-3 bg-[#45D153] hover:bg-[#3bc048] text-[#04352b] font-black rounded-xl transition-all"
+                  className="flex-1 px-4 py-3 bg-[#45D153] hover:bg-[#3bc048] text-[#04352b] font-black rounded-xl transition-all cursor-pointer"
                 >
                   Dismiss
                 </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  )}
+      )}
 
-  {route.view === 'legal-terms' && <LegalDocuments view="terms" setView={handleSetView} />}
-  {route.view === 'legal-privacy' && <LegalDocuments view="privacy" setView={handleSetView} />}
-  {route.view === 'legal-cookies' && <LegalDocuments view="cookies" setView={handleSetView} />}
-  {route.view === 'legal-acceptable-use' && <LegalDocuments view="acceptable-use" setView={handleSetView} />}
-  {route.view === 'legal-disclaimer' && <LegalDocuments view="disclaimer" setView={handleSetView} />}
-  {route.view === 'legal-sla' && <LegalDocuments view="sla" setView={handleSetView} />}
-  {route.view === 'contact' && <ContactSupportHub setView={handleSetView} currentUser={currentUser} />}
-
-                </div>
+      {showDeleteAccountModal && (
+        <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
+          <div className="bg-[#02241d] border-2 border-red-500/50 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h3 className="text-xl font-black text-red-400 mb-4">Delete Your Account?</h3>
+            <p className="text-sm text-gray-300 mb-4">This action is permanent and cannot be undone. All your data will be removed.</p>
+            <div className="space-y-3 mb-6">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={deleteConfirmedTick}
+                  onChange={(e) => setDeleteConfirmedTick(e.target.checked)}
+                  className="mt-1 accent-red-500"
+                />
+                <span className="text-sm text-gray-300">I understand this will permanently delete my account and all associated data</span>
+              </label>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteAccountModal(false)}
+                className="flex-1 px-4 py-3 bg-[#064e3f] hover:bg-[#0a634f] text-white font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAndExecuteDeleteAccount}
+                disabled={!deleteConfirmedTick}
+                className="flex-1 px-4 py-3 bg-red-700 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-xl transition-all cursor-pointer"
+              >
+                Delete Account
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    </main>
-
-<CookieConsentBanner />
-
-{activeAlarm && (
-
-  <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
-    <div className="bg-[#02241d] border-2 border-[#45D153] rounded-2xl p-6 max-w-md w-full shadow-2xl">
-      <div className="text-center space-y-4">
-        <div className="w-16 h-16 mx-auto rounded-full bg-[#45D153]/20 flex items-center justify-center animate-pulse">
-          <Bell className="w-8 h-8 text-[#45D153]" />
-        </div>
-        <h3 className="text-xl font-black text-white">{activeAlarm.label}</h3>
-        <p className="text-sm text-emerald-200/80">Serial: {activeAlarm.serialNumber}</p>
-        <p className="text-lg font-bold text-[#45D153]">{activeAlarm.time}</p>
-        <div className="flex gap-3 pt-2">
-          <button
-            onClick={() => handleSnooze(15)}
-            className="flex-1 px-4 py-3 bg-[#064e3f] hover:bg-[#0a634f] text-white font-bold rounded-xl transition-all"
-          >
-            Snooze 15m
-          </button>
-          <button
-            onClick={handleDismissAlarm}
-            className="flex-1 px-4 py-3 bg-[#45D153] hover:bg-[#3bc048] text-[#04352b] font-black rounded-xl transition-all"
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
+      )}
     </div>
-  </div>
-)}
-{showDeleteAccountModal && (
-  <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
-    <div className="bg-[#02241d] border-2 border-red-500/50 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-      <h3 className="text-xl font-black text-red-400 mb-4">Delete Your Account?</h3>
-      <p className="text-sm text-gray-300 mb-4">This action is permanent and cannot be undone. All your data will be removed.</p>
-      <div className="space-y-3 mb-6">
-        <label className="flex items-start gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={deleteConfirmedTick}
-            onChange={(e) => setDeleteConfirmedTick(e.target.checked)}
-            className="mt-1 accent-red-500"
-          />
-          <span className="text-sm text-gray-300">I understand this will permanently delete my account and all associated data</span>
-        </label>
-      </div>
-      <div className="flex gap-3">
-        <button
-          onClick={() => setShowDeleteAccountModal(false)}
-          className="flex-1 px-4 py-3 bg-[#064e3f] hover:bg-[#0a634f] text-white font-bold rounded-xl transition-all"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={confirmAndExecuteDeleteAccount}
-          disabled={!deleteConfirmedTick}
-          className="flex-1 px-4 py-3 bg-red-700 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-xl transition-all"
-        >
-          Delete Account
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-</div>
-);
+  );
 }
            
