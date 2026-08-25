@@ -1,5 +1,5 @@
 // Smart Bin Tag (SBT) Service Worker for Background Collection Notifications
-const CACHE_NAME = 'sbt-v1';
+const CACHE_NAME = 'sbtapp-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -9,12 +9,23 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Handle Background Push Notifications
+// Handle Background Push Notifications (delivered when app is closed or device is locked)
 self.addEventListener('push', (event) => {
-  let data = { title: 'Smart Bin Tag Collection Alert', body: 'Your bin collection is scheduled now!', url: '/' };
+  let data = {
+    title: 'Smart Bin Tag Collection Alert',
+    body: 'Your bin collection is scheduled now!',
+    url: '/dashboard',
+    tag: 'sbt-collection-alert'
+  };
+
   try {
     if (event.data) {
-      data = event.data.json();
+      const parsed = event.data.json();
+      data = {
+        ...data,
+        ...parsed,
+        url: parsed.url || (parsed.serialNumber ? `/my-bins?serial=${parsed.serialNumber}` : '/dashboard')
+      };
     }
   } catch (e) {
     if (event.data) {
@@ -26,11 +37,14 @@ self.addEventListener('push', (event) => {
     body: data.body,
     icon: '/favicon.svg',
     badge: '/favicon.svg',
-    vibrate: [200, 100, 200, 100, 200],
+    vibrate: [300, 100, 300, 100, 300],
     tag: data.tag || 'sbt-collection-alert',
     renotify: true,
+    requireInteraction: true,
     data: {
-      url: data.url || '/'
+      url: data.url || '/dashboard',
+      serialNumber: data.serialNumber,
+      tagId: data.tagId
     },
     actions: [
       { action: 'open', title: 'Open App' },
@@ -43,7 +57,7 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Handle Notification Clicks (Opening the app from phone/tablet home screen/lockscreen)
+// Handle Notification Clicks (Opening the app from phone/tablet home screen or lockscreen)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
