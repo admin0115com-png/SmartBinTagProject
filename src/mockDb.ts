@@ -211,7 +211,7 @@ const initDb = () => {
   const usersStr = localStorage.getItem('sbt_users');
   const tagsStr = localStorage.getItem('sbt_tags');
   
-  // Purge legacy fake accounts admin0115@gmail.com and standard0115@gmail.com (John Homeowner)
+  // Purge legacy fake accounts admin0115@gmail.com and standard0115@gmail.com
   let users: User[] = usersStr ? JSON.parse(usersStr) : INITIAL_USERS;
   const filteredUsers = users.filter(u => {
     const em = (u.email || '').toLowerCase().trim();
@@ -224,11 +224,15 @@ const initDb = () => {
 
   // Restore & sync persistent avatars across sessions
   filteredUsers.forEach(u => {
-    const savedAvatar = localStorage.getItem(`sbt_avatar_${u.uid}`);
+    const normEmail = (u.email || '').toLowerCase().trim();
+    const savedAvatar = localStorage.getItem(`sbt_avatar_${u.uid}`) || (normEmail ? localStorage.getItem(`sbt_avatar_${normEmail}`) : null);
     if (savedAvatar) {
       u.profilePhoto = savedAvatar;
+      localStorage.setItem(`sbt_avatar_${u.uid}`, savedAvatar);
+      if (normEmail) localStorage.setItem(`sbt_avatar_${normEmail}`, savedAvatar);
     } else if (u.profilePhoto) {
       localStorage.setItem(`sbt_avatar_${u.uid}`, u.profilePhoto);
+      if (normEmail) localStorage.setItem(`sbt_avatar_${normEmail}`, u.profilePhoto);
     }
   });
 
@@ -263,21 +267,12 @@ const initDb = () => {
       {
         id: 'prof-admin',
         userId: 'usr-admin-primary',
+        email: 'admin0115.com@gmail.com',
         firstName: 'Admin',
         lastName: 'Primary',
         phoneNumber: '+44 7700 900100',
         postcode: 'SW1A 1AA',
         avatarUrl: adminAvatar,
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 'prof-admin-typo',
-        userId: 'usr-admin-typo',
-        firstName: 'Admin',
-        lastName: 'Typo',
-        phoneNumber: '+44 7700 900100',
-        postcode: 'SW1A 1AA',
-        avatarUrl: '',
         updatedAt: new Date().toISOString()
       }
     ]));
@@ -288,17 +283,6 @@ const initDb = () => {
       {
         id: 'np-admin',
         userId: 'usr-admin-primary',
-        pushEnabled: true,
-        emailEnabled: true,
-        remindersAlerts: true,
-        foundBinAlerts: true,
-        damageAlerts: true,
-        messageAlerts: true,
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 'np-admin-typo',
-        userId: 'usr-admin-typo',
         pushEnabled: true,
         emailEnabled: true,
         remindersAlerts: true,
@@ -320,15 +304,6 @@ const initDb = () => {
         notificationsFrequency: 'instantly',
         marketingConsent: false,
         updatedAt: new Date().toISOString()
-      },
-      {
-        id: 'set-admin-typo',
-        userId: 'usr-admin-typo',
-        theme: 'dark',
-        language: 'en',
-        notificationsFrequency: 'instantly',
-        marketingConsent: false,
-        updatedAt: new Date().toISOString()
       }
     ]));
   }
@@ -344,17 +319,6 @@ const initDb = () => {
         notificationsCount: 2,
         upcomingCollectionsCount: 3,
         supportTicketsCount: 2,
-        lastRefresh: new Date().toISOString()
-      },
-      {
-        id: 'dash-admin-typo',
-        userId: 'usr-admin-typo',
-        foundReportsCount: 0,
-        damageReportsCount: 0,
-        unreadMessagesCount: 0,
-        notificationsCount: 0,
-        upcomingCollectionsCount: 0,
-        supportTicketsCount: 0,
         lastRefresh: new Date().toISOString()
       }
     ]));
@@ -398,7 +362,7 @@ const initDb = () => {
   }
 };
 
-// Helper to get and set
+// Helper to validate serial numbers
 const isValidSerial = (serial: any): boolean => {
   if (typeof serial !== 'string') return false;
   const trimmed = serial.trim().toUpperCase();
@@ -465,7 +429,7 @@ const triggerDbChange = () => {
   });
 };
 
-// Enable cross-tab / cross-iframe synchronicity for absolute Nhost realtime feel
+// Enable cross-tab synchronicity
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
     if (event.key && event.key.startsWith('sbt_')) {
@@ -496,13 +460,55 @@ export const mockDb = {
     const user = users.find(u => u.uid === loggedInId && u.status === 'Active');
     if (!user) return null;
 
-    // Restore persistent avatar if not populated or out of sync
-    const savedAvatar = localStorage.getItem(`sbt_avatar_${user.uid}`);
-    if (savedAvatar && user.profilePhoto !== savedAvatar) {
+    // Restore persistent avatar by UID, email, or profile record
+    const normEmail = (user.email || '').toLowerCase().trim();
+    const savedAvatar = localStorage.getItem(`sbt_avatar_${user.uid}`) || 
+                        (normEmail ? localStorage.getItem(`sbt_avatar_${normEmail}`) : null);
+    
+    if (savedAvatar) {
       user.profilePhoto = savedAvatar;
-    } else if (user.profilePhoto && !savedAvatar) {
+      localStorage.setItem(`sbt_avatar_${user.uid}`, savedAvatar);
+      if (normEmail) localStorage.setItem(`sbt_avatar_${normEmail}`, savedAvatar);
+    } else if (user.profilePhoto) {
       localStorage.setItem(`sbt_avatar_${user.uid}`, user.profilePhoto);
+      if (normEmail) localStorage.setItem(`sbt_avatar_${normEmail}`, user.profilePhoto);
+    } else {
+      const profiles = getFromStorage<UserProfile[]>('sbt_profiles');
+      const p = profiles.find(pr => pr.userId === user.uid || (normEmail && pr.email && pr.email.toLowerCase() === normEmail));
+      if (p?.avatarUrl) {
+        user.profilePhoto = p.avatarUrl;
+        localStorage.setItem(`sbt_avatar_${user.uid}`, p.avatarUrl);
+        if (normEmail) localStorage.setItem(`sbt_avatar_${normEmail}`, p.avatarUrl);
+      }
     }
+
+    // Trigger non-blocking cloud check from Nhost Hasura if missing or out of sync
+    if (normEmail || user.uid) {
+      try {
+        nhost.graphql.request<{ sbt_profiles: { avatar_url: string }[] }>({
+          query: `query FetchCloudAvatar($uid: String!, $email: String!) {
+            sbt_profiles(where: { _or: [{ user_id: { _eq: $uid } }, { email: { _eq: $email } }] }, limit: 1) {
+              avatar_url
+            }
+          }`,
+          variables: { uid: user.uid, email: normEmail }
+        }).then(res => {
+          const cloudAvatar = (res as any)?.data?.sbt_profiles?.[0]?.avatar_url;
+          if (cloudAvatar && cloudAvatar !== user.profilePhoto) {
+            user.profilePhoto = cloudAvatar;
+            localStorage.setItem(`sbt_avatar_${user.uid}`, cloudAvatar);
+            if (normEmail) localStorage.setItem(`sbt_avatar_${normEmail}`, cloudAvatar);
+            const currentUsers = getFromStorage<User[]>('sbt_users');
+            const idx = currentUsers.findIndex(u => u.uid === user.uid);
+            if (idx !== -1) {
+              currentUsers[idx].profilePhoto = cloudAvatar;
+              setToStorage('sbt_users', currentUsers);
+            }
+          }
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
     return user;
   },
 
@@ -510,7 +516,6 @@ export const mockDb = {
     const users = getFromStorage<User[]>('sbt_users');
     const normalizedEmail = email.trim().toLowerCase();
     
-    // Direct match against saved users
     const user = users.find(u => u.email.toLowerCase() === normalizedEmail);
     
     if (!user) {
@@ -522,19 +527,49 @@ export const mockDb = {
     }
 
     // Restore & sync persistent avatar for login
-    const savedAvatar = localStorage.getItem(`sbt_avatar_${user.uid}`);
+    const savedAvatar = localStorage.getItem(`sbt_avatar_${user.uid}`) || 
+                        localStorage.getItem(`sbt_avatar_${normalizedEmail}`);
     if (savedAvatar) {
       user.profilePhoto = savedAvatar;
+      localStorage.setItem(`sbt_avatar_${user.uid}`, savedAvatar);
+      localStorage.setItem(`sbt_avatar_${normalizedEmail}`, savedAvatar);
     } else if (user.profilePhoto) {
       localStorage.setItem(`sbt_avatar_${user.uid}`, user.profilePhoto);
+      localStorage.setItem(`sbt_avatar_${normalizedEmail}`, user.profilePhoto);
     } else {
       const profiles = getFromStorage<UserProfile[]>('sbt_profiles');
-      const p = profiles.find(pr => pr.userId === user.uid);
+      const p = profiles.find(pr => pr.userId === user.uid || (pr.email && pr.email.toLowerCase() === normalizedEmail));
       if (p?.avatarUrl) {
         user.profilePhoto = p.avatarUrl;
         localStorage.setItem(`sbt_avatar_${user.uid}`, p.avatarUrl);
+        localStorage.setItem(`sbt_avatar_${normalizedEmail}`, p.avatarUrl);
       }
     }
+
+    // Check Nhost Hasura for cloud avatar on login
+    try {
+      nhost.graphql.request<{ sbt_profiles: { avatar_url: string }[] }>({
+        query: `query GetLoginAvatar($uid: String!, $email: String!) {
+          sbt_profiles(where: { _or: [{ user_id: { _eq: $uid } }, { email: { _eq: $email } }] }, limit: 1) {
+            avatar_url
+          }
+        }`,
+        variables: { uid: user.uid, email: normalizedEmail }
+      }).then(res => {
+        const cloudAvatar = (res as any)?.data?.sbt_profiles?.[0]?.avatar_url;
+        if (cloudAvatar) {
+          user.profilePhoto = cloudAvatar;
+          localStorage.setItem(`sbt_avatar_${user.uid}`, cloudAvatar);
+          localStorage.setItem(`sbt_avatar_${normalizedEmail}`, cloudAvatar);
+          const currentUsers = getFromStorage<User[]>('sbt_users');
+          const idx = currentUsers.findIndex(u => u.uid === user.uid);
+          if (idx !== -1) {
+            currentUsers[idx].profilePhoto = cloudAvatar;
+            setToStorage('sbt_users', currentUsers);
+          }
+        }
+      }).catch(() => {});
+    } catch (e) {}
 
     // Record login device session
     const sessions = getFromStorage<DeviceSession[]>('sbt_device_sessions');
@@ -573,12 +608,17 @@ export const mockDb = {
     return { success: true, user };
   },
 
-  loginExternal: (email: string, firstName: string, lastName: string): { success: boolean; user: User } => {
+  loginExternal: (email: string, firstName: string, lastName: string, avatarUrl?: string): { success: boolean; user: User } => {
     const users = getFromStorage<User[]>('sbt_users');
     const normalizedEmail = email.trim().toLowerCase();
     
     let user = users.find(u => u.email.toLowerCase() === normalizedEmail);
     
+    const initialAvatar = avatarUrl || 
+                          localStorage.getItem(`sbt_avatar_${normalizedEmail}`) || 
+                          (user ? localStorage.getItem(`sbt_avatar_${user.uid}`) : null) || 
+                          '';
+
     if (!user) {
       const isAdmin = normalizedEmail === 'admin0115@gmail.com' || normalizedEmail === 'admin0115.com@gmail.com';
       user = {
@@ -586,6 +626,7 @@ export const mockDb = {
         firstName: firstName || 'Google',
         lastName: lastName || 'User',
         email,
+        profilePhoto: initialAvatar || undefined,
         accountType: isAdmin ? 'admin' : 'user',
         createdAt: new Date().toISOString(),
         status: 'Active',
@@ -608,19 +649,25 @@ export const mockDb = {
       profiles.push({
         id: 'prof-' + generateId(),
         userId: user.uid,
+        email: normalizedEmail,
         firstName: user.firstName,
         lastName: user.lastName,
         postcode: '',
-        avatarUrl: '',
+        avatarUrl: initialAvatar,
         updatedAt: new Date().toISOString()
       });
       setToStorage('sbt_profiles', profiles);
     } else {
       // Restore persistent avatar on existing user login
-      const savedAvatar = localStorage.getItem(`sbt_avatar_${user.uid}`);
+      const savedAvatar = initialAvatar || user.profilePhoto || '';
       if (savedAvatar) {
         user.profilePhoto = savedAvatar;
       }
+    }
+
+    if (user.profilePhoto) {
+      localStorage.setItem(`sbt_avatar_${user.uid}`, user.profilePhoto);
+      localStorage.setItem(`sbt_avatar_${normalizedEmail}`, user.profilePhoto);
     }
     
     // Set logged in session
@@ -628,6 +675,31 @@ export const mockDb = {
     user.lastLogin = new Date().toISOString();
     user.emailVerified = true;
     setToStorage('sbt_users', users);
+
+    // Asynchronously fetch cloud avatar from Nhost Hasura if exists
+    try {
+      nhost.graphql.request<{ sbt_profiles: { avatar_url: string }[] }>({
+        query: `query GetCloudAvatarExternal($uid: String!, $email: String!) {
+          sbt_profiles(where: { _or: [{ user_id: { _eq: $uid } }, { email: { _eq: $email } }] }, limit: 1) {
+            avatar_url
+          }
+        }`,
+        variables: { uid: user.uid, email: normalizedEmail }
+      }).then(res => {
+        const cloudAvatar = (res as any)?.data?.sbt_profiles?.[0]?.avatar_url;
+        if (cloudAvatar && user) {
+          user.profilePhoto = cloudAvatar;
+          localStorage.setItem(`sbt_avatar_${user.uid}`, cloudAvatar);
+          localStorage.setItem(`sbt_avatar_${normalizedEmail}`, cloudAvatar);
+          const currentUsers = getFromStorage<User[]>('sbt_users');
+          const idx = currentUsers.findIndex(u => u.uid === user.uid);
+          if (idx !== -1) {
+            currentUsers[idx].profilePhoto = cloudAvatar;
+            setToStorage('sbt_users', currentUsers);
+          }
+        }
+      }).catch(() => {});
+    } catch (e) {}
     
     return { success: true, user };
   },
@@ -635,12 +707,10 @@ export const mockDb = {
   logout: (): void => {
     const loggedInId = localStorage.getItem('sbt_logged_in_uid');
     if (loggedInId) {
-      // Mark session as inactive
       const sessions = getFromStorage<DeviceSession[]>('sbt_device_sessions');
       const updated = sessions.map(s => s.userId === loggedInId ? { ...s, isActive: false } : s);
       setToStorage('sbt_device_sessions', updated);
 
-      // Add audit log
       const auditLogs = getFromStorage<AuditLogEntry[]>('sbt_audit_logs');
       auditLogs.push({
         id: 'audit-' + generateId(),
@@ -664,8 +734,6 @@ export const mockDb = {
       return { success: false, error: 'An account with this email address already exists.' };
     }
 
-    // Determine accountType. Per requirement:
-    // admin0115@gmail.com and admin0115.com@gmail.com are admin accounts. Rest are normal users.
     const isAdmin = normalizedEmail === 'admin0115@gmail.com' || normalizedEmail === 'admin0115.com@gmail.com';
 
     const newUser: User = {
@@ -696,6 +764,7 @@ export const mockDb = {
     const newProfile: UserProfile = {
       id: 'prof-' + generateId(),
       userId: newUser.uid,
+      email: normalizedEmail,
       firstName,
       lastName,
       phoneNumber,
@@ -744,7 +813,7 @@ export const mockDb = {
       foundReportsCount: 0,
       damageReportsCount: 0,
       unreadMessagesCount: 0,
-      notificationsCount: 1, // Welcome notification
+      notificationsCount: 1,
       upcomingCollectionsCount: 0,
       supportTicketsCount: 0,
       lastRefresh: new Date().toISOString()
@@ -793,10 +862,8 @@ export const mockDb = {
     histories.push(newHist);
     setToStorage('sbt_registration_history', histories);
 
-    // Automatically log them in
     localStorage.setItem('sbt_logged_in_uid', newUser.uid);
 
-    // Create system notification
     mockDb.addNotification(
       newUser.uid,
       'Account',
@@ -807,7 +874,6 @@ export const mockDb = {
     return { success: true, user: newUser };
   },
 
-  // --- PROFILE DATA SERVICES (Real-time Simulated Accessors) ---
   getProfile: (userId: string): UserProfile | null => {
     const profiles = getFromStorage<UserProfile[]>('sbt_profiles');
     return profiles.find(p => p.userId === userId) || null;
@@ -956,7 +1022,6 @@ export const mockDb = {
       console.warn('[Nhost Cloud Sync] Exception saving support ticket:', e);
     }
 
-    // Log action to Registration History & Audit Log
     const histories = getFromStorage<RegistrationHistoryItem[]>('sbt_registration_history');
     histories.push({
       id: 'hist-' + generateId(),
@@ -979,7 +1044,6 @@ export const mockDb = {
     });
     setToStorage('sbt_audit_logs', auditLogs);
 
-    // Update Dashboard Ticket Count
     const dashboards = getFromStorage<UserDashboardRecord[]>('sbt_user_dashboards');
     const dashIdx = dashboards.findIndex(d => d.userId === userId);
     if (dashIdx !== -1) {
@@ -999,7 +1063,6 @@ export const mockDb = {
       tickets[index].updatedAt = new Date().toISOString();
       setToStorage('sbt_support_tickets', tickets);
 
-      // Sync status update to Nhost / Hasura backend support_tickets table
       try {
         nhost.graphql.request({
           query: `mutation UpdateSupportTicket($id: String!, $status: String!) {
@@ -1020,7 +1083,6 @@ export const mockDb = {
     const filtered = tickets.filter(t => t.id !== ticketId);
     setToStorage('sbt_support_tickets', filtered);
 
-    // Sync deletion to Nhost / Hasura backend support_tickets table
     try {
       nhost.graphql.request({
         query: `mutation DeleteSupportTicket($id: String!) {
@@ -1040,9 +1102,9 @@ export const mockDb = {
     if (!user) return [];
     const users = getFromStorage<User[]>('sbt_users');
     
-    // Ensure avatar URLs are attached from persistent store
     users.forEach(u => {
-      const saved = localStorage.getItem(`sbt_avatar_${u.uid}`);
+      const normEmail = (u.email || '').toLowerCase().trim();
+      const saved = localStorage.getItem(`sbt_avatar_${u.uid}`) || (normEmail ? localStorage.getItem(`sbt_avatar_${normEmail}`) : null);
       if (saved) {
         u.profilePhoto = saved;
       }
@@ -1060,21 +1122,22 @@ export const mockDb = {
     if (index === -1) throw new Error('User not found');
     
     users[index] = { ...users[index], ...fields } as User;
+    const userEmail = (users[index].email || '').toLowerCase().trim();
     
-    // 1. Persistent dedicated avatar store
+    // 1. Persistent dedicated avatar store by UID and Email
     if (fields.profilePhoto !== undefined) {
       if (fields.profilePhoto) {
         localStorage.setItem(`sbt_avatar_${uid}`, fields.profilePhoto);
+        if (userEmail) localStorage.setItem(`sbt_avatar_${userEmail}`, fields.profilePhoto);
       } else {
         localStorage.removeItem(`sbt_avatar_${uid}`);
+        if (userEmail) localStorage.removeItem(`sbt_avatar_${userEmail}`);
       }
     }
 
-    setToStorage('sbt_users', users);
-
     // 2. Synchronize sbt_profiles table
     const profiles = getFromStorage<UserProfile[]>('sbt_profiles');
-    const pIdx = profiles.findIndex(p => p.userId === uid);
+    const pIdx = profiles.findIndex(p => p.userId === uid || (userEmail && p.email && p.email.toLowerCase() === userEmail));
     const photoToSave = fields.profilePhoto !== undefined ? fields.profilePhoto : (users[index].profilePhoto || '');
 
     if (pIdx !== -1) {
@@ -1091,32 +1154,40 @@ export const mockDb = {
       profiles.push({
         id: 'prof-' + generateId(),
         userId: uid,
+        email: userEmail,
         firstName: users[index].firstName,
         lastName: users[index].lastName,
         phoneNumber: users[index].phoneNumber,
-        postcode: users[index].postcode,
+        postcode: users[index].postcode || '',
         avatarUrl: photoToSave,
         updatedAt: new Date().toISOString()
       });
     }
     setToStorage('sbt_profiles', profiles);
 
-    // 3. Synchronize to Nhost GraphQL if avatar or profile changed
+    // 3. Synchronize to Nhost GraphQL & Hasura if avatar or profile changed
     if (fields.profilePhoto !== undefined) {
       try {
+        if ((nhost.auth as any)?.changeUser) {
+          (nhost.auth as any).changeUser({ avatarUrl: fields.profilePhoto || '' }).catch(() => {});
+        }
         nhost.graphql.request({
-          query: `mutation UpdateAvatar($uid: String!, $avatarUrl: String!) {
-            update_sbt_profiles(where: { user_id: { _eq: $uid } }, _set: { avatar_url: $avatarUrl }) {
+          query: `mutation UpdateAvatar($uid: String!, $email: String!, $avatarUrl: String!) {
+            update_sbt_profiles(
+              where: { _or: [{ user_id: { _eq: $uid } }, { email: { _eq: $email } }] },
+              _set: { avatar_url: $avatarUrl }
+            ) {
               affected_rows
             }
           }`,
-          variables: { uid, avatarUrl: fields.profilePhoto || '' }
+          variables: { uid, email: userEmail, avatarUrl: fields.profilePhoto || '' }
         }).catch(err => console.warn('[Nhost Cloud Sync] Avatar update warning:', err));
       } catch (e) {
         console.warn('[Nhost Cloud Sync] Exception updating avatar in Nhost:', e);
       }
     }
 
+    triggerDbChange();
     return users[index];
   },
 
@@ -1125,19 +1196,16 @@ export const mockDb = {
     const filtered = users.filter(u => u.uid !== uid);
     setToStorage('sbt_users', filtered);
     
-    // Disassociate bins owned by this user
     const bins = getFromStorage<Bin[]>('sbt_bins');
     const userBins = bins.filter(b => b.ownerId === uid);
     const updatedBins = bins.filter(b => b.ownerId !== uid);
     setToStorage('sbt_bins', updatedBins);
 
-    // Delete reminders
     const reminders = getFromStorage<any[]>('sbt_reminders');
     const userSerials = new Set(userBins.map(b => b.serialNumber));
     const remainingReminders = reminders.filter(r => !userSerials.has(r.serialNumber));
     setToStorage('sbt_reminders', remainingReminders);
 
-    // Release tags
     const tags = getFromStorage<BinTag[]>('sbt_tags');
     const updatedTags = tags.map(t => {
       if (t.ownerId === uid) {
@@ -1147,7 +1215,6 @@ export const mockDb = {
     });
     setToStorage('sbt_tags', updatedTags);
 
-    // Clean up profiles, notifications, messages
     const profiles = getFromStorage<any[]>('sbt_profiles');
     setToStorage('sbt_profiles', profiles.filter((p: any) => p.userId !== uid));
 
@@ -1211,7 +1278,6 @@ export const mockDb = {
     return true;
   },
 
-  // --- SERIAL NUMBER / TAG SERVICE ---
   validateSerialNumber: (serialNumber: string): { valid: boolean; tag: BinTag | null; error?: string } => {
     let raw = (serialNumber || '').trim().toUpperCase();
     if (!raw) {
@@ -1228,7 +1294,6 @@ export const mockDb = {
     } else if (raw.startsWith('SBT')) {
       digits = raw.substring(3).trim();
     } else if (/^\d+$/.test(raw)) {
-      // User typed ONLY numbers -> Auto-add SBT- prefix and pad to 8 digits
       digits = raw.trim();
     } else {
       return {
@@ -1238,12 +1303,10 @@ export const mockDb = {
       };
     }
 
-    // Auto-pad 1-8 digits to 8 digits with leading zeros
     if (/^\d{1,8}$/.test(digits)) {
       digits = digits.padStart(8, '0');
     }
 
-    // Enforce EXACTLY 8 digits
     if (!/^\d{8}$/.test(digits)) {
       return { 
         valid: false, 
@@ -1266,8 +1329,6 @@ export const mockDb = {
     const tags = getFromStorage<BinTag[]>('sbt_tags');
     let tag = tags.find(t => t.serialNumber === normalized) || null;
 
-    // If valid serial but doesn't exist in our pre-seeds, dynamically manufacture it!
-    // This supports our scale promise (50,000,000 unique tags).
     if (!tag) {
       tag = {
         serialNumber: normalized,
@@ -1327,7 +1388,6 @@ export const mockDb = {
     }
     setToStorage('sbt_tags', tags);
 
-    // Keep sbt_bins in sync if tag is registered/assigned
     if (fields.status === 'Registered' && fields.ownerId) {
       const bins = getFromStorage<Bin[]>('sbt_bins');
       const binIdx = bins.findIndex(b => b.serialNumber === normalized);
@@ -1407,7 +1467,6 @@ export const mockDb = {
 
     let userBins = bins.filter(b => b.ownerId && userUids.has(b.ownerId));
 
-    // Cross-check registered/assigned tags in sbt_tags
     const tags = getFromStorage<BinTag[]>('sbt_tags');
     let binsUpdated = false;
 
@@ -1463,14 +1522,12 @@ export const mockDb = {
       return { success: false, error: 'This Smart Bin Tag is already registered to another user account.' };
     }
 
-    // Register tag
     mockDb.updateTag(validation.tag.serialNumber, {
       status: 'Registered',
       ownerId,
       registeredDate: new Date().toISOString()
     });
 
-    // Create or update the bin
     const bins = getFromStorage<Bin[]>('sbt_bins');
     const existingIndex = bins.findIndex(b => b.serialNumber === validation.tag!.serialNumber);
 
@@ -1491,7 +1548,7 @@ export const mockDb = {
         ...binDetails,
         binId: 'bin-' + generateId(),
         ownerId,
-        serialNumber: validation.tag.serialNumber, // standardized format
+        serialNumber: validation.tag.serialNumber,
         registeredDate: new Date().toISOString(),
         lastUpdated: new Date().toISOString(),
         status: 'Active',
@@ -1501,7 +1558,6 @@ export const mockDb = {
     }
     setToStorage('sbt_bins', bins);
 
-    // Seed reminders based on user-entered values
     const reminders = getFromStorage<ReminderSchedule[]>('sbt_reminders');
     const defaultDays: Record<string, string> = {
       Black: 'Thursday',
@@ -1545,7 +1601,6 @@ export const mockDb = {
     }
     setToStorage('sbt_reminders', reminders);
 
-    // Notification
     mockDb.addNotification(
       ownerId,
       'Account',
@@ -1586,11 +1641,6 @@ export const mockDb = {
     }
 
     const originalBin = bins[index];
-    const user = getLoggedInUser();
-
-    if (user && user.accountType !== 'admin' && originalBin.ownerId && user.uid && originalBin.ownerId !== user.uid) {
-      // Don't block update if owner matches or isn't set
-    }
 
     const updatedBin = { 
       ...originalBin, 
@@ -1599,7 +1649,6 @@ export const mockDb = {
     } as Bin;
     bins[index] = updatedBin;
 
-    // Synchronize tag status if state changed
     if (fields.status === 'Lost') {
       mockDb.updateTag(originalBin.serialNumber, { status: 'Lost' });
     } else if (fields.status === 'Active' && originalBin.status === 'Lost') {
@@ -1620,7 +1669,6 @@ export const mockDb = {
           colDay = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
         }
       } else {
-        // Default based on type
         const defaultDays: Record<string, string> = {
           Black: 'Thursday',
           Green: 'Tuesday',
@@ -1636,7 +1684,6 @@ export const mockDb = {
       const alarmTone = updatedBin.alarmTone || 'Chime Classic';
 
       if (rIndex === -1) {
-        // Create new reminder schedule
         const newReminder: ReminderSchedule = {
           reminderId: 'rem-' + generateId(),
           ownerId: updatedBin.ownerId,
@@ -1672,18 +1719,15 @@ export const mockDb = {
     const bin = bins.find(b => b.binId === binId);
     if (!bin) return false;
 
-    // Release tag
     mockDb.updateTag(bin.serialNumber, {
       status: 'Available',
       ownerId: null,
       registeredDate: null
     });
 
-    // Remove reminders
     const reminders = getFromStorage<ReminderSchedule[]>('sbt_reminders');
     setToStorage('sbt_reminders', reminders.filter(r => r.serialNumber !== bin.serialNumber));
 
-    // Remove bin
     setToStorage('sbt_bins', bins.filter(b => b.binId !== binId));
     return true;
   },
@@ -1691,21 +1735,18 @@ export const mockDb = {
   adminResetTag: (serialNumber: string): boolean => {
     const normalized = serialNumber.trim().toUpperCase();
     
-    // Find linked bin and delete it if exists
     const bins = getFromStorage<Bin[]>('sbt_bins');
     const linkedBin = bins.find(b => b.serialNumber === normalized);
     if (linkedBin) {
       mockDb.deleteBin(linkedBin.binId);
     }
     
-    // Always force tag reset state (removes ownerId, sets registeredDate to null, status to Available)
     mockDb.updateTag(normalized, {
       status: 'Available',
       ownerId: null,
       registeredDate: null
     });
     
-    // Force remove reminders
     const reminders = getFromStorage<any[]>('sbt_reminders');
     const remainingReminders = reminders.filter(r => r.serialNumber !== normalized);
     setToStorage('sbt_reminders', remainingReminders);
@@ -1727,17 +1768,17 @@ export const mockDb = {
   calculateNextCollection: (binType: string): string => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const defaultDays: Record<string, number> = {
-      Black: 4, // Thursday
-      Green: 2, // Tuesday
-      Blue: 3, // Wednesday
-      Brown: 5  // Friday
+      Black: 4,
+      Green: 2,
+      Blue: 3,
+      Brown: 5
     };
-    const targetDayNum = defaultDays[binType] || 1; // Default Monday
+    const targetDayNum = defaultDays[binType] || 1;
     
     const today = new Date();
     const currentDayNum = today.getDay();
     let daysUntil = targetDayNum - currentDayNum;
-    if (daysUntil <= 0) daysUntil += 7; // Next week
+    if (daysUntil <= 0) daysUntil += 7;
 
     const targetDate = new Date(today);
     targetDate.setDate(today.getDate() + daysUntil);
@@ -1762,7 +1803,6 @@ export const mockDb = {
   },
 
   submitReport: (reportData: Omit<BinReport, 'reportId' | 'createdAt' | 'status' | 'binId'>): { success: boolean; report: BinReport; error?: string } => {
-    // Verify serial tag
     const validation = mockDb.validateSerialNumber(reportData.serialNumber);
     if (!validation.valid || !validation.tag) {
       return { success: false, report: {} as BinReport, error: validation.error || 'Invalid serial number' };
@@ -1783,7 +1823,6 @@ export const mockDb = {
     reports.push(newReport);
     setToStorage('sbt_reports', reports);
 
-    // Nhost Hasura Data Sync
     try {
       nhost.graphql.request({
         query: `mutation InsertReport($id: String!, $serial: String!, $type: String!, $desc: String, $loc: String, $postcode: String, $house: String, $status: String) {
@@ -1813,7 +1852,6 @@ export const mockDb = {
       console.warn('[Nhost Cloud Sync] Exception saving report:', e);
     }
 
-    // If bin is linked, update its status
     if (linkedBin) {
       if (reportData.reportType === 'Found') {
         mockDb.updateBin(linkedBin.binId, { status: 'Recovered' });
@@ -1822,7 +1860,6 @@ export const mockDb = {
         mockDb.updateBin(linkedBin.binId, { status: 'Damaged' });
       }
 
-      // Notify Owner (Dashboard Alert)
       const notifyTitle = reportData.reportType === 'Found' 
         ? 'Your Wheelie Bin Has Been Found!' 
         : 'Damage Reported on Your Smart Bin';
@@ -1863,7 +1900,6 @@ export const mockDb = {
     reports[reportIndex].status = 'Resolved';
     setToStorage('sbt_reports', reports);
     
-    // Update linked bin back to Active
     if (report.binId) {
       mockDb.updateBin(report.binId, { status: 'Active' });
     }
@@ -1956,7 +1992,6 @@ export const mockDb = {
     messages.push(newMessage);
     setToStorage('sbt_messages', messages);
 
-    // Nhost Hasura Data Sync
     try {
       nhost.graphql.request({
         query: `mutation InsertMessage($id: String!, $serial: String!, $owner_id: String!, $sName: String!, $sEmail: String!, $sPhone: String, $msg: String!) {
@@ -1984,7 +2019,6 @@ export const mockDb = {
       console.warn('[Nhost Cloud Sync] Exception saving message:', e);
     }
 
-    // Notify Owner
     if (ownerId && ownerId !== 'ADMIN') {
       mockDb.addNotification(
         ownerId,
@@ -2003,7 +2037,6 @@ export const mockDb = {
     const filtered = messages.filter(m => m.messageId !== messageId);
     setToStorage('sbt_messages', filtered);
 
-    // Sync deletion to Nhost / Hasura backend messages table
     try {
       nhost.graphql.request({
         query: `mutation DeleteMessage($id: String!) {
@@ -2036,11 +2069,6 @@ export const mockDb = {
   addNotification: (ownerId: string, type: NotificationItem['type'], title: string, body: string, actionUrl?: string): NotificationItem => {
     const notifications = getFromStorage<NotificationItem[]>('sbt_notifications');
     
-    // Check if user has notification preferences enabled for this alert type
-    const users = getFromStorage<User[]>('sbt_users');
-    const user = users.find(u => u.uid === ownerId);
-    
-    // If user exists and alerts are configured, we still write to db, but maybe suppress client push
     const newNotif: NotificationItem = {
       notificationId: 'not-' + generateId(),
       ownerId,
@@ -2053,16 +2081,14 @@ export const mockDb = {
       actionUrl
     };
 
-    notifications.unshift(newNotif); // latest first
+    notifications.unshift(newNotif);
     setToStorage('sbt_notifications', notifications);
 
-    // Dispatch Native OS Pop-up / Push Notification to Phone / Tablet Home Screen
     sendNativeDeviceNotification(title, body, {
       tag: newNotif.notificationId,
       url: actionUrl || '/'
     });
 
-    // Nhost Hasura Data Sync
     try {
       nhost.graphql.request({
         query: `mutation InsertNotification($id: String!, $user_id: String!, $title: String!, $body: String!, $read: Boolean!) {
@@ -2081,12 +2107,9 @@ export const mockDb = {
           body: body,
           read: false
         }
-      }).catch(err => {
-        // Silent fallback if remote Nhost table structure differs
-      });
-    } catch (e) {
-      // Ignore exception
-    }
+      }).catch(err => {});
+    } catch (e) {}
+
     return newNotif;
   },
 
@@ -2148,7 +2171,6 @@ export const mockDb = {
 
     let updatedReminder: ReminderSchedule;
     if (index === -1) {
-      // Create new reminder schedule
       const newReminder: ReminderSchedule = {
         reminderId: reminderId || 'rem-' + generateId(),
         ownerId: fields.ownerId || '',
