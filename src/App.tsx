@@ -152,7 +152,13 @@ export default function App() {
           const nameParts = fullName.trim().split(/\s+/);
           const fName = nameParts[0] || 'Google';
           const lName = nameParts.slice(1).join(' ') || 'User';
-          const res = mockDb.loginExternal(email, fName, lName);
+          
+          const avatar = (session.user as any)?.avatarUrl || 
+                         (session.user as any)?.metadata?.avatarUrl || 
+                         (session.user as any)?.metadata?.profilePhoto || 
+                         '';
+          
+          const res = mockDb.loginExternal(email, fName, lName, avatar);
           if (res.success && res.user) {
             localStorage.setItem('sbt_logged_in_uid', res.user.uid);
             setCurrentUser(res.user);
@@ -162,6 +168,7 @@ export default function App() {
             setLastName(res.user.lastName);
             setPhoneNumber(res.user.phoneNumber || '');
             setPostcode(res.user.postcode || '');
+            setProfilePhoto(res.user.profilePhoto || '');
             setEmailPref(res.user.notificationPreferences.emailEnabled);
             setPushPref(res.user.notificationPreferences.pushEnabled);
             setRoute({ view: 'home' });
