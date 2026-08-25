@@ -194,41 +194,76 @@ export async function syncNotificationSettingsToNhost(userId: string, pushEnable
 /**
  * Sync Dispatched Collection Alert Record to Nhost / Hasura backend
  */
-export async function syncCollectionAlertToNhost(
-  userId: string,
-  binId: string,
-  alertType: string,
-  title: string,
-  body: string
-): Promise<void> {
+export async function syncCollectionAlertToNhost(alertData: {
+  tagId: string;
+  type: string;
+  time: string;
+  date?: string;
+  repeatIntervalWeeks?: number;
+  alarmTone?: string;
+  emailEnabled?: boolean;
+  pushEnabled?: boolean;
+  inAppEnabled?: boolean;
+}): Promise<void> {
   try {
-    await nhost.graphql.request({
-      query: `mutation RecordCollectionAlert($id: String!, $userId: String!, $binId: String!, $type: String!, $title: String!, $body: String!) {
-        insert_collection_alerts_one(object: {
-          id: $id,
-          user_id: $userId,
-          bin_id: $binId,
-          alert_type: $type,
-          title: $title,
-          body: $body,
-          status: "DISPATCHED",
-          created_at: "now()"
-        }) {
-          id
-        }
-      }`,
-      variables: {
-        id: 'alt-' + Math.random().toString(36).substring(2, 9),
-        userId,
-        binId,
-        type: alertType,
-        title,
-        body,
-      },
-    }).catch(err => {
-      console.warn('[Nhost Collection Alert Sync] Warning:', err);
-    });
-  } catch (e) {
-    console.warn('[Nhost Collection Alert Sync] Exception:', e);
+    // 1. Attempt insert
+    await nhost.graphql
+      .request({
+        query: `mutation InsertCollectionAlert($tag_id: uuid!, $type: String!, $time: String!, $date: date, $repeat: Int, $sound: String, $email: Boolean, $push: Boolean, $in_app: Boolean) {
+          insert_collection_alerts_one(object: {
+            tag_id: $tag_id,
+            alert_type: $type,
+            time: $time,
+            date: $date,
+            repeat_interval_weeks: $repeat,
+            alarm_sound: $sound,
+            email_enabled: $email,
+            push_enabled: $push,
+            in_app_enabled: $in_app
+          }) { id }
+        }`,
+        variables: {
+          tag_id: alertData.tagId,
+          type: alertData.type,
+          time: alertData.time,
+          date: alertData.date || null,
+          repeat: alertData.repeatIntervalWeeks || 1,
+          sound: alertData.alarmTone || 'Chime Classic',
+          email: alertData.emailEnabled !== undefined ? alertData.emailEnabled : true,
+          push: alertData.pushEnabled !== undefined ? alertData.pushEnabled : true,
+          in_app: alertData.inAppEnabled !== undefined ? alertData.inAppEnabled : true,
+        },
+      })
+      .catch(async () => {
+        // 2. If already exists, update
+        await nhost.graphql.request({
+          query: `mutation UpdateCollectionAlert($tag_id: uuid!, $type: String!, $time: String!, $date: date, $repeat: Int, $sound: String, $email: Boolean, $push: Boolean, $in_app: Boolean) {
+          update_collection_alerts(where: { tag_id: { _eq: $tag_id }, alert_type: { _eq: $type } }, _set: {
+            time: $time,
+            date: $date,
+            repeat_interval_weeks: $repeat,
+            alarm_sound: $sound,
+            email_enabled: $email,
+            push_enabled: $push,
+            in_app_enabled: $in_app
+          }) {
+            affected_rows
+          }
+        }`,
+          variables: {
+            tag_id: alertData.tagId,
+            type: alertData.type,
+            time: alertData.time,
+            date: alertData.date || null,
+            repeat: alertData.repeatIntervalWeeks || 1,
+            sound: alertData.alarmTone || 'Chime Classic',
+            email: alertData.emailEnabled !== undefined ? alertData.emailEnabled : true,
+            push: alertData.pushEnabled !== undefined ? alertData.pushEnabled : true,
+            in_app: alertData.inAppEnabled !== undefined ? alertData.inAppEnabled : true,
+          },
+        });
+      });
+  } catch (err) {
+    console.warn('[Nhost Push] Error syncing alert:', err);
   }
 }
