@@ -19,6 +19,7 @@ import LegalDocuments from './components/LegalDocuments';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import ContactSupportHub from './components/ContactSupportHub';
 import PostcodeSelector from './components/PostcodeSelector';
+import DeviceNotificationPermissionBanner from './components/DeviceNotificationPermissionBanner';
 import { lookupUkPostcodeArea, formatPostcode, PostcodeAreaInfo } from './data/ukPostcodeAreas';
 import { Bell, Key, Settings, Sparkles, Mail, Check, AlertCircle, RefreshCw, X, ShieldAlert, CheckCircle, Smartphone, Volume2, Camera, User as UserIcon } from 'lucide-react';
 import { PRELOADED_AVATARS } from './components/HeroSection';
@@ -514,6 +515,9 @@ export default function App() {
         onDelete={handleDeleteNotification}
         setView={handleSetView}
       />
+
+      {/* Native Device Notification Banner */}
+      <DeviceNotificationPermissionBanner userId={currentUser?.uid} />
 
       <main className="flex-1">
         {route.view === 'home' && (
