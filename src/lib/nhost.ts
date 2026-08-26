@@ -1,4 +1,4 @@
-import { createClient, NhostClient } from '@nhost/nhost-js';
+import { createClient } from '@nhost/nhost-js';
 
 // Production Nhost configuration for SmartBinTag Project
 // Connected to live Hasura instance (sjpksyugwmepoxjjvzyq.hasura.eu-central-1.nhost.run)
@@ -43,24 +43,17 @@ export interface CustomAuth {
 }
 
 /**
- * Initialize the Nhost client with the provided project details using the v4 createClient factory.
+ * Initialize the Nhost client using createClient from @nhost/nhost-js v4.
  * Subdomain: sjpksyugwmepoxjjvzyq
  * Region: eu-central-1
  */
 let baseNhost: any;
 
 try {
-  if (typeof createClient === 'function') {
-    baseNhost = createClient({
-      subdomain: NHOST_SUBDOMAIN,
-      region: NHOST_REGION,
-    });
-  } else {
-    baseNhost = new NhostClient({
-      subdomain: NHOST_SUBDOMAIN,
-      region: NHOST_REGION,
-    });
-  }
+  baseNhost = createClient({
+    subdomain: NHOST_SUBDOMAIN,
+    region: NHOST_REGION,
+  });
   console.log('✅ Nhost connected successfully to', NHOST_SUBDOMAIN);
 } catch (error) {
   console.error('❌ Nhost connection failed:', error);
@@ -193,11 +186,7 @@ if (baseNhost && baseNhost.auth) {
 }
 
 // Export the nhost client cast with custom typed auth interface
-export const nhost = baseNhost as Omit<typeof baseNhost, 'auth'> & {
-  auth: typeof baseNhost.auth & CustomAuth;
-  graphql: any;
-  functions: any;
-};
+export const nhost = baseNhost as any;
 
 export interface NhostTagRecord {
   serial_number: string;
