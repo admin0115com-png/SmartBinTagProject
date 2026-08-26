@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Smartphone, Check, X, Share2, PlusSquare } from 'lucide-react';
 import { requestPushNotificationPermission, getNotificationPermissionState, sendNativeDeviceNotification } from '../lib/pushNotifications';
-import { registerPushSubscription } from '../lib/notificationScheduler';
 
 interface DeviceNotificationPermissionBannerProps {
   userId?: string;
@@ -42,9 +41,6 @@ export default function DeviceNotificationPermissionBanner({ userId }: DeviceNot
       setPermissionState(result);
 
       if (result === 'granted') {
-        if (userId) {
-          await registerPushSubscription(userId).catch(() => {});
-        }
         await sendNativeDeviceNotification(
           'SmartBinTag Alerts Activated! 🔔',
           'Your phone is now connected. You will receive collection pop-up reminders even when the app is closed.',
