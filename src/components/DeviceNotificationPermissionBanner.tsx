@@ -6,14 +6,11 @@ import {
   X, 
   Share2, 
   PlusSquare, 
-  Volume2, 
-  VolumeX,
-  Play
+  Volume2
 } from 'lucide-react';
 import { 
   requestPushNotificationPermission, 
   getNotificationPermissionState, 
-  sendNativeDeviceNotification,
   syncNotificationSettingsToNhost 
 } from '../lib/pushNotifications';
 
@@ -237,26 +234,12 @@ export default function DeviceNotificationPermissionBanner({ userId }: DeviceNot
       setPermissionState(result);
 
       if (result === 'granted') {
-        // Play sample tone
-        playSyntheticTone(selectedTone);
-
-        // Send local native push notification test
-        await sendNativeDeviceNotification(
-          'SmartBinTag Alerts Activated! 🔔',
-          'Your device is connected. You will receive collection pop-up reminders and audio alarms on your lock screen.',
-          { 
-            url: '/?view=my-bins',
-            sound: true,
-            tag: 'sbt-activation-test'
-          }
-        );
-
         if (userId) {
           await syncNotificationSettingsToNhost(userId, true);
         }
 
         setTestSuccess(true);
-        setTimeout(() => setTestSuccess(false), 6000);
+        setTimeout(() => setTestSuccess(false), 5000);
       } else if (result === 'denied') {
         alert('Notification permission was blocked. To receive alerts, please enable notifications in your browser or phone Settings.');
       }
@@ -277,39 +260,39 @@ export default function DeviceNotificationPermissionBanner({ userId }: DeviceNot
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2 select-none">
-      <div className="bg-gradient-to-r from-[#02241d] via-[#04352b] to-[#011a14] border-2 border-[#45D153]/60 rounded-2xl p-4 sm:p-5 shadow-2xl relative overflow-hidden">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-2 select-none">
+      <div className="bg-gradient-to-r from-[#02241d] via-[#04352b] to-[#011a14] border-2 border-[#45D153]/60 rounded-2xl p-3.5 sm:p-5 shadow-2xl relative overflow-hidden">
         
         {/* Glow backdrop */}
         <div className="absolute top-0 right-0 w-72 h-72 bg-[#45D153]/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-[#45D153]/20 border border-[#45D153]/50 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(69,209,83,0.3)] animate-pulse">
-              <Bell className="w-6 h-6 text-[#45D153]" />
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3.5 sm:gap-4 relative z-10">
+          <div className="flex items-start sm:items-center gap-3 w-full md:w-auto">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-[#45D153]/20 border border-[#45D153]/50 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(69,209,83,0.3)]">
+              <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-[#45D153]" />
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="text-sm sm:text-base font-black text-white uppercase tracking-tight font-sans">
-                  Phone & Tablet Collection Pop-up Alerts
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h4 className="text-xs sm:text-sm md:text-base font-black text-white uppercase tracking-tight font-sans">
+                  Phone & Tablet Collection Alerts
                 </h4>
-                <span className="px-2 py-0.5 rounded-md bg-[#45D153]/20 text-[#45D153] border border-[#45D153]/40 text-[10px] font-black uppercase font-mono tracking-wider">
-                  Native Push & 13 Audio Tones
+                <span className="px-1.5 py-0.5 rounded bg-[#45D153]/20 text-[#45D153] border border-[#45D153]/40 text-[9px] sm:text-[10px] font-black uppercase font-mono tracking-wider">
+                  Native Push & Audio
                 </span>
               </div>
-              <p className="text-xs text-emerald-200/80 mt-1 max-w-2xl font-sans">
-                Enable native notifications to receive bin collection reminders (Evening Before & Collection Morning) and sound alerts directly on your device lock screen—<strong>even when the browser is closed</strong>.
+              <p className="text-[11px] sm:text-xs text-emerald-200/80 mt-0.5 sm:mt-1 max-w-2xl font-sans leading-relaxed">
+                Receive bin collection reminders (Evening Before & Morning) directly on your lock screen—<strong>even when closed</strong>.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0 flex-wrap sm:flex-nowrap">
-            {/* Quick Sound Preview Selector */}
-            <div className="flex items-center gap-1 bg-[#011a14] border border-[#064e3f] rounded-xl p-1">
+          <div className="flex items-center gap-2 w-full md:w-auto shrink-0 flex-wrap sm:flex-nowrap justify-between sm:justify-end">
+            {/* Tone Selector & Preview */}
+            <div className="flex items-center gap-1 bg-[#011a14] border border-[#064e3f] rounded-xl p-1 shrink-0">
               <select
                 value={selectedTone}
                 onChange={(e) => setSelectedTone(e.target.value)}
-                className="bg-transparent text-emerald-300 text-[11px] font-mono font-bold focus:outline-none px-1.5 py-1 cursor-pointer"
+                className="bg-transparent text-emerald-300 text-[10px] sm:text-[11px] font-mono font-bold focus:outline-none px-1 py-0.5 cursor-pointer max-w-[130px] sm:max-w-none"
                 title="Select Alarm Tone to Preview"
               >
                 {ALARM_TONES.map((t) => (
@@ -332,65 +315,62 @@ export default function DeviceNotificationPermissionBanner({ userId }: DeviceNot
               </button>
             </div>
 
-            {isIos && !isStandalone ? (
-              <button
-                type="button"
-                onClick={() => setShowIosGuide(!showIosGuide)}
-                className="w-full md:w-auto px-4 py-2.5 bg-[#02241d] hover:bg-[#064e3f] border-2 border-[#45D153] text-white hover:text-[#45D153] text-xs font-black uppercase rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Smartphone className="w-4 h-4 text-[#45D153]" />
-                <span>{showIosGuide ? 'Hide iPhone Steps' : 'iPhone Setup (Add to Home)'}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleRequestPermission}
-                disabled={isRequesting}
-                className="w-full md:w-auto px-5 py-2.5 bg-[#45D153] hover:bg-[#3bc048] text-[#04352b] text-xs font-black uppercase rounded-xl transition-all shadow-[0_0_20px_rgba(69,209,83,0.4)] cursor-pointer flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Bell className="w-4 h-4 font-black" />
-                <span>{isRequesting ? 'Connecting...' : 'Activate Device Alerts'}</span>
-              </button>
-            )}
+            <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
+              {isIos && !isStandalone ? (
+                <button
+                  type="button"
+                  onClick={() => setShowIosGuide(!showIosGuide)}
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[#02241d] hover:bg-[#064e3f] border-2 border-[#45D153] text-white hover:text-[#45D153] text-[11px] sm:text-xs font-black uppercase rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-[#45D153]" />
+                  <span>{showIosGuide ? 'Hide Steps' : 'iPhone Setup'}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRequestPermission}
+                  disabled={isRequesting}
+                  className="px-3.5 sm:px-5 py-2 sm:py-2.5 bg-[#45D153] hover:bg-[#3bc048] text-[#04352b] text-[11px] sm:text-xs font-black uppercase rounded-xl transition-all shadow-[0_0_20px_rgba(69,209,83,0.4)] cursor-pointer flex items-center justify-center gap-1.5 hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
+                >
+                  <Bell className="w-3.5 h-3.5 font-black" />
+                  <span>{isRequesting ? 'Connecting...' : 'Activate Alerts'}</span>
+                </button>
+              )}
 
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="p-2 text-emerald-400/60 hover:text-white rounded-lg transition-colors cursor-pointer"
-              title="Dismiss"
-            >
-              <X className="w-4 h-4" />
-            </button>
+              <button
+                type="button"
+                onClick={handleDismiss}
+                className="p-1.5 sm:p-2 text-emerald-400/60 hover:text-white rounded-lg transition-colors cursor-pointer shrink-0"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* iOS Web Push Setup Instructions */}
         {showIosGuide && isIos && !isStandalone && (
-          <div className="mt-4 pt-4 border-t border-[#064e3f] space-y-3 animate-in fade-in">
-            <div className="p-3.5 bg-[#011a14] rounded-xl border border-[#064e3f] space-y-2">
+          <div className="mt-3 pt-3 border-t border-[#064e3f] space-y-2 animate-in fade-in">
+            <div className="p-3 bg-[#011a14] rounded-xl border border-[#064e3f] space-y-1.5">
               <p className="text-xs font-bold text-white uppercase font-sans flex items-center gap-1.5">
                 <Smartphone className="w-4 h-4 text-[#45D153]" />
-                <span>How to enable Lockscreen Alerts on iPhone / iPad (iOS 16.4+):</span>
+                <span>Enable Lock Screen Alerts on iPhone / iPad:</span>
               </p>
-              <ol className="text-xs text-emerald-200/90 space-y-1.5 list-decimal list-inside font-sans pl-1">
-                <li>Tap the Safari <strong>Share button</strong> <Share2 className="inline w-3.5 h-3.5 text-[#45D153] mx-1" /> at the bottom of your screen.</li>
-                <li>Scroll down and tap <strong>"Add to Home Screen"</strong> <PlusSquare className="inline w-3.5 h-3.5 text-[#45D153] mx-1" />.</li>
-                <li>Open the <strong>SmartBinTag icon</strong> from your iPhone / iPad Home Screen.</li>
-                <li>Tap <strong>"Activate Device Alerts"</strong> and select <strong>Allow</strong>.</li>
+              <ol className="text-[11px] text-emerald-200/90 space-y-1 list-decimal list-inside font-sans pl-1">
+                <li>Tap Safari <strong>Share</strong> <Share2 className="inline w-3 h-3 text-[#45D153] mx-0.5" />.</li>
+                <li>Tap <strong>"Add to Home Screen"</strong> <PlusSquare className="inline w-3 h-3 text-[#45D153] mx-0.5" />.</li>
+                <li>Open from Home Screen and tap <strong>"Activate Alerts"</strong>.</li>
               </ol>
-              <p className="text-[11px] text-[#45D153] font-mono pt-1 flex items-center gap-1">
-                <Check className="w-3.5 h-3.5" />
-                <span>SmartBinTag will then appear in your phone's <strong>Settings ➔ Notifications</strong> alongside all your apps!</span>
-              </p>
             </div>
           </div>
         )}
 
-        {/* Test Notification Banner */}
+        {/* Activation Success Banner */}
         {testSuccess && (
-          <div className="mt-3 p-3 bg-[#45D153]/20 border border-[#45D153]/50 rounded-xl flex items-center gap-2.5 text-[#45D153] text-xs font-bold animate-in fade-in">
+          <div className="mt-2.5 p-2.5 bg-[#45D153]/20 border border-[#45D153]/50 rounded-xl flex items-center gap-2 text-[#45D153] text-xs font-bold animate-in fade-in">
             <Check className="w-4 h-4 shrink-0" />
-            <span>Device notifications & audio tone verified! Test collection pop-up sent to your device lock screen.</span>
+            <span>Device connected! Real collection reminders will pop up on your lock screen.</span>
           </div>
         )}
       </div>
