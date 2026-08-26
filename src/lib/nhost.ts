@@ -1,4 +1,9 @@
-import { createClient } from '@nhost/nhost-js';
+import { createClient, NhostClient } from '@nhost/nhost-js';
+
+// Production Nhost configuration for SmartBinTag Project
+// Connected to live Hasura instance (sjpksyugwmepoxjjvzyq.hasura.eu-central-1.nhost.run)
+export const NHOST_SUBDOMAIN = import.meta.env.VITE_NHOST_SUBDOMAIN || 'sjpksyugwmepoxjjvzyq';
+export const NHOST_REGION = import.meta.env.VITE_NHOST_REGION || 'eu-central-1';
 
 export function isValidUuid(str?: string | null): boolean {
   if (!str) return false;
@@ -34,6 +39,7 @@ export interface CustomAuth {
     email: string;
     password: string;
   }): Promise<{ session: any; error: any }>;
+  [key: string]: any;
 }
 
 /**
@@ -44,19 +50,26 @@ export interface CustomAuth {
 let baseNhost: any;
 
 try {
-  baseNhost = createClient({
-    subdomain: 'sjpksyugwmepoxjjvzyq',
-    region: 'eu-central-1',
-  });
-  console.log('✅ Nhost connected successfully');
+  if (typeof createClient === 'function') {
+    baseNhost = createClient({
+      subdomain: NHOST_SUBDOMAIN,
+      region: NHOST_REGION,
+    });
+  } else {
+    baseNhost = new NhostClient({
+      subdomain: NHOST_SUBDOMAIN,
+      region: NHOST_REGION,
+    });
+  }
+  console.log('✅ Nhost connected successfully to', NHOST_SUBDOMAIN);
 } catch (error) {
   console.error('❌ Nhost connection failed:', error);
-  baseNhost = { auth: {}, storage: {}, graphql: {} } as any;
+  baseNhost = { auth: {}, storage: {}, graphql: {}, functions: {} } as any;
 }
 
 export { baseNhost };
 
-// Implement the custom popup/redirect signInWithProvider method on the auth instance
+// Implement custom popup/redirect signInWithProvider method on the auth instance
 if (baseNhost && baseNhost.auth) {
   (baseNhost.auth as any).signInWithProvider = async (
     params: { provider: string; options?: { redirectTo?: string } },
@@ -65,7 +78,9 @@ if (baseNhost && baseNhost.auth) {
     const provider = params.provider;
     const redirectTo = params.options?.redirectTo || window.location.origin;
 
-    const providerUrl = baseNhost.auth.signInProviderURL(provider as any, { redirectTo });
+    const providerUrl = baseNhost.auth.signInProviderURL 
+      ? baseNhost.auth.signInProviderURL(provider as any, { redirectTo })
+      : `https://${NHOST_SUBDOMAIN}.auth.${NHOST_REGION}.nhost.run/v1/signin/provider/${provider}?redirectTo=${encodeURIComponent(redirectTo)}`;
 
     if (options?.popup) {
       const width = 600;
@@ -89,19 +104,17 @@ if (baseNhost && baseNhost.auth) {
       return new Promise((resolve) => {
         const checkInterval = setInterval(() => {
           try {
-            const session = baseNhost.sessionStorage?.get?.();
+            const session = baseNhost.sessionStorage?.get?.() || baseNhost.auth?.getSession?.();
             if (session) {
               clearInterval(checkInterval);
-              try {
-                popupWindow.close();
-              } catch (err) {}
+              try { popupWindow.close(); } catch (err) {}
               resolve({ session, error: null });
               return;
             }
 
             if (popupWindow.closed) {
               clearInterval(checkInterval);
-              const finalSession = baseNhost.sessionStorage?.get?.();
+              const finalSession = baseNhost.sessionStorage?.get?.() || baseNhost.auth?.getSession?.();
               if (finalSession) {
                 resolve({ session: finalSession, error: null });
               } else {
@@ -114,10 +127,8 @@ if (baseNhost && baseNhost.auth) {
             if (currentUrl.startsWith(window.location.origin)) {
               clearInterval(checkInterval);
               setTimeout(() => {
-                try {
-                  popupWindow.close();
-                } catch (err) {}
-                const finalSession = baseNhost.sessionStorage?.get?.();
+                try { popupWindow.close(); } catch (err) {}
+                const finalSession = baseNhost.sessionStorage?.get?.() || baseNhost.auth?.getSession?.();
                 resolve({ session: finalSession, error: null });
               }, 1200);
             }
@@ -139,14 +150,15 @@ if (baseNhost && baseNhost.auth) {
     options?: { displayName?: string };
   }) => {
     try {
-      const response = await (baseNhost.auth as any).signUpEmailPassword({
+      const fn = (baseNhost.auth as any).signUpEmailPassword || (baseNhost.auth as any).signUp;
+      const response = await fn.call(baseNhost.auth, {
         email: params.email,
         password: params.password,
         options: params.options,
       });
       return {
-        session: response.session || response.body?.session || null,
-        error: response.error,
+        session: response?.session || response?.body?.session || null,
+        error: response?.error || null,
       };
     } catch (error: any) {
       return {
@@ -162,13 +174,14 @@ if (baseNhost && baseNhost.auth) {
     password: string;
   }) => {
     try {
-      const response = await (baseNhost.auth as any).signInEmailPassword({
+      const fn = (baseNhost.auth as any).signInEmailPassword || (baseNhost.auth as any).signIn;
+      const response = await fn.call(baseNhost.auth, {
         email: params.email,
         password: params.password,
       });
       return {
-        session: response.session || response.body?.session || null,
-        error: response.error,
+        session: response?.session || response?.body?.session || null,
+        error: response?.error || null,
       };
     } catch (error: any) {
       return {
@@ -179,18 +192,97 @@ if (baseNhost && baseNhost.auth) {
   };
 }
 
-// Export the nhost client cast with our custom typed auth interface
+// Export the nhost client cast with custom typed auth interface
 export const nhost = baseNhost as Omit<typeof baseNhost, 'auth'> & {
   auth: typeof baseNhost.auth & CustomAuth;
+  graphql: any;
+  functions: any;
 };
 
-interface BinData {
+export interface NhostTagRecord {
+  serial_number: string;
+  status: string;
+  batch_number: string;
+  assigned_to?: string;
+  bin_id?: string;
+  house_number?: string;
+  street?: string;
+  postcode?: string;
+  county?: string;
+  bin_colour?: string;
+  town_city?: string;
+  alarm_tone?: string;
+  notes?: string;
+  created_at?: string;
+  assigned_at?: string;
+}
+
+export interface NhostCollectionAlertRecord {
+  id: string;
+  user_id: string;
+  bin_id: string;
+  serial_number: string;
+  bin_type: string;
+  bin_colour?: string;
+  alert_type: string;
+  scheduled_at?: string;
+  scheduled_time?: string;
+  scheduled_date?: string;
+  repeat_interval?: string;
+  timezone?: string;
+  alarm_sound?: string;
+  alarm_tone?: string;
+  notes?: string;
+  enabled: boolean;
+  status?: string;
+  push_enabled?: boolean;
+  email_enabled?: boolean;
+  in_app_enabled?: boolean;
+}
+
+export interface BinData {
   id: string;
   serial_number: string;
   bin_type: string;
   house_number: string;
   street: string;
   status: string;
+}
+
+/**
+ * Helper to test if Nhost backend is reachable
+ */
+export async function checkNhostConnection(): Promise<boolean> {
+  try {
+    const res = await fetch(`https://${NHOST_SUBDOMAIN}.graphql.${NHOST_REGION}.nhost.run/v1`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: '{ __typename }' })
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Generic helper for executing GraphQL queries and mutations on Nhost
+ */
+export async function nhostGraphQLRequest<T = any>(query: string, variables: Record<string, any> = {}): Promise<T> {
+  const endpoint = `https://${NHOST_SUBDOMAIN}.graphql.${NHOST_REGION}.nhost.run/v1`;
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ query, variables })
+  });
+
+  const json = await res.json();
+  if (json.errors && json.errors.length > 0) {
+    throw new Error(json.errors[0].message || 'Nhost GraphQL query failed');
+  }
+  return json.data as T;
 }
 
 export async function getMyBinsQuery(): Promise<BinData[]> {
@@ -206,16 +298,17 @@ export async function getMyBinsQuery(): Promise<BinData[]> {
   `;
   
   try {
-    const response = await nhost.graphql.request<{ tags: BinData[] }>({
+    const response = await nhost.graphql.request({
       query: GET_BINS_QUERY
     });
     
-    if (response.body?.errors) {
-      console.error('GraphQL execution errors:', response.body.errors);
-      throw new Error(response.body.errors[0]?.message || 'GraphQL error occurred');
+    if (response?.body?.errors || response?.errors) {
+      const err = response?.body?.errors?.[0] || response?.errors?.[0];
+      console.error('GraphQL execution errors:', err);
+      throw new Error(err?.message || 'GraphQL error occurred');
     }
     
-    return response.body?.data?.tags || [];
+    return response?.body?.data?.tags || response?.data?.tags || [];
   } catch (error) {
     console.error('Error fetching bins from Nhost:', error);
     throw error;
@@ -247,12 +340,13 @@ export async function registerBinMutation(variables: {
       variables,
     });
 
-    if (response.body?.errors) {
-      console.error('GraphQL execution errors:', response.body.errors);
-      throw new Error(response.body.errors[0]?.message || 'GraphQL mutation error occurred');
+    if (response?.body?.errors || response?.errors) {
+      const err = response?.body?.errors?.[0] || response?.errors?.[0];
+      console.error('GraphQL execution errors:', err);
+      throw new Error(err?.message || 'GraphQL mutation error occurred');
     }
 
-    return response.body?.data;
+    return response?.body?.data || response?.data;
   } catch (error) {
     console.error('Error registering bin in Nhost:', error);
     throw error;
@@ -261,11 +355,11 @@ export async function registerBinMutation(variables: {
 
 export async function signUpUser(email: string, password: string) {
   try {
-    const response = await nhost.auth.signUpEmailPassword({
+    const response = await (nhost.auth as any).signUpEmailPassword({
       email,
       password,
     });
-    return response.body;
+    return response?.body || response;
   } catch (error) {
     console.error('Nhost Sign up failed:', error);
     throw error;
@@ -274,11 +368,11 @@ export async function signUpUser(email: string, password: string) {
 
 export async function signInUser(email: string, password: string) {
   try {
-    const response = await nhost.auth.signInEmailPassword({
+    const response = await (nhost.auth as any).signInEmailPassword({
       email,
       password,
     });
-    return response.body;
+    return response?.body || response;
   } catch (error) {
     console.error('Nhost Sign in failed:', error);
     throw error;
@@ -287,8 +381,8 @@ export async function signInUser(email: string, password: string) {
 
 export async function signOutUser() {
   try {
-    const response = await nhost.auth.signOut({});
-    return response.body;
+    const response = await (nhost.auth as any).signOut({});
+    return response?.body || response;
   } catch (error) {
     console.error('Nhost Sign out failed:', error);
     throw error;
@@ -301,7 +395,7 @@ export async function triggerCollectionReminder(binId: string, binType: string) 
       binId,
       binType,
     });
-    return response.body;
+    return response?.body || response;
   } catch (error) {
     console.error('Failed to trigger custom function on Nhost:', error);
     throw error;
