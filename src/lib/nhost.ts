@@ -230,12 +230,19 @@ export interface NhostCollectionAlertRecord {
 }
 
 export interface BinData {
-  id: string;
+  id?: string;
   serial_number: string;
-  bin_type: string;
-  house_number: string;
-  street: string;
   status: string;
+  batch_number?: string;
+  assigned_to?: string;
+  bin_id?: string;
+  bin_colour?: string;
+  house_number?: string;
+  street?: string;
+  postcode?: string;
+  town_city?: string;
+  alarm_tone?: string;
+  notes?: string;
 }
 
 /**
@@ -277,11 +284,19 @@ export async function nhostGraphQLRequest<T = any>(query: string, variables: Rec
 export async function getMyBinsQuery(): Promise<BinData[]> {
   const GET_BINS_QUERY = `
     query GetMyBins {
-      tags {
-        id
+      tags(order_by: { created_at: desc }) {
         serial_number
         status
-        registered_by
+        batch_number
+        assigned_to
+        bin_id
+        bin_colour
+        house_number
+        street
+        postcode
+        town_city
+        alarm_tone
+        notes
       }
     }
   `;
