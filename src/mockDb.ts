@@ -2,7 +2,7 @@ import {
   User, BinTag, Bin, BinColor, BinReport, PrivateMessage, ReminderSchedule, NotificationItem, SystemSettings,
   UserProfile, UserNotificationPreferences, UserSettings, UserDashboardRecord, DeviceSession, AuditLogEntry, RegistrationHistoryItem, SupportTicket
 } from './types';
-import { nhost } from './lib/nhost';
+import { nhost, toUuid } from './lib/nhost';
 import { sendNativeDeviceNotification } from './lib/pushNotifications';
 
 // Helper to generate IDs
@@ -60,7 +60,7 @@ const getPreviousDateStr = (dateStr: string): string => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-// Generate initial tags: ONLY SBT-00000014 is valid!
+// Generate initial tags: Admin tag + Homeowner tags + Pre-seeded available stickers
 const generateInitialTags = (): BinTag[] => {
   return [
     {
@@ -70,22 +70,91 @@ const generateInitialTags = (): BinTag[] => {
       registeredDate: '2026-05-15T12:00:00Z',
       manufacturedDate: '2026-01-10T08:00:00Z',
       nfcEnabled: true
+    },
+    {
+      serialNumber: 'SBT-00000001',
+      status: 'Registered',
+      ownerId: 'usr-homeowner-primary',
+      registeredDate: '2026-07-16T09:00:00Z',
+      manufacturedDate: '2026-01-10T08:00:00Z',
+      nfcEnabled: true
+    },
+    {
+      serialNumber: 'SBT-00000002',
+      status: 'Registered',
+      ownerId: 'usr-homeowner-primary',
+      registeredDate: '2026-07-16T09:15:00Z',
+      manufacturedDate: '2026-01-10T08:00:00Z',
+      nfcEnabled: true
+    },
+    {
+      serialNumber: 'SBT-00000003',
+      status: 'Available',
+      ownerId: null,
+      registeredDate: null,
+      manufacturedDate: '2026-01-10T08:00:00Z',
+      nfcEnabled: true
+    },
+    {
+      serialNumber: 'SBT-00000006',
+      status: 'Available',
+      ownerId: null,
+      registeredDate: null,
+      manufacturedDate: '2026-01-10T08:00:00Z',
+      nfcEnabled: true
+    },
+    {
+      serialNumber: 'SBT-00000008',
+      status: 'Available',
+      ownerId: null,
+      registeredDate: null,
+      manufacturedDate: '2026-01-10T08:00:00Z',
+      nfcEnabled: true
+    },
+    {
+      serialNumber: 'SBT-00000010',
+      status: 'Available',
+      ownerId: null,
+      registeredDate: null,
+      manufacturedDate: '2026-01-10T08:00:00Z',
+      nfcEnabled: true
     }
   ];
 };
 
-// Initial state with admin account (admin0115.com@gmail.com)
+// Initial state with admin account (admin0115.com@gmail.com) and resident account
 const INITIAL_USERS: User[] = [
   {
     uid: 'usr-admin-primary',
     firstName: 'Admin',
     lastName: 'Primary',
     email: 'admin0115.com@gmail.com',
-    profilePhoto: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Felix&skinColor=d08b5b&hairColor=4a312c&top=theCaesar&clothing=shirtVNeck&clothesColor=ffffff&facialHairProbability=0&mouth=smile&eyes=happy',
+    profilePhoto: '',
     phoneNumber: '+44 7700 900100',
     accountType: 'admin',
     postcode: 'LN5 8PE',
     createdAt: '2026-07-12T12:00:00Z',
+    status: 'Active',
+    emailVerified: true,
+    notificationPreferences: {
+      pushEnabled: true,
+      emailEnabled: true,
+      remindersAlerts: true,
+      foundBinAlerts: true,
+      damageAlerts: true,
+      messageAlerts: true,
+    }
+  },
+  {
+    uid: 'usr-homeowner-primary',
+    firstName: 'Alex',
+    lastName: 'Taylor',
+    email: 'resident@gmail.com',
+    profilePhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
+    phoneNumber: '+44 7700 900222',
+    accountType: 'user',
+    postcode: 'LN5 8PE',
+    createdAt: '2026-07-15T10:00:00Z',
     status: 'Active',
     emailVerified: true,
     notificationPreferences: {
@@ -116,7 +185,67 @@ const INITIAL_BINS: Bin[] = [
     registeredDate: '2026-05-15T12:00:00Z',
     lastUpdated: '2026-05-15T12:00:00Z',
     status: 'Active',
-    nextCollection: 'Tomorrow, 07:00 AM'
+    nextCollection: 'Tomorrow, 07:00 AM',
+    collectionDayDate: 'Tuesday',
+    collectionDayTime: '07:00 AM',
+    collectionDayEnabled: true,
+    beforeCollectionDate: 'Monday',
+    beforeCollectionTime: '06:00 PM',
+    beforeCollectionEnabled: true,
+    alarmTone: 'Chime Classic',
+    repeatIntervalWeeks: 1
+  },
+  {
+    binId: 'bin-home-01',
+    ownerId: 'usr-homeowner-primary',
+    serialNumber: 'SBT-00000001',
+    binType: 'Green',
+    propertyName: 'Highland Cottage',
+    houseNumber: '12',
+    street: 'High Street',
+    town: 'Lincoln',
+    county: 'Lincolnshire',
+    postcode: 'LN5 8PE',
+    country: 'United Kingdom',
+    notes: 'Green recycling wheelie bin beside driveway gate.',
+    registeredDate: '2026-07-16T09:00:00Z',
+    lastUpdated: '2026-07-16T09:00:00Z',
+    status: 'Active',
+    nextCollection: 'Tuesday at 07:00 AM',
+    collectionDayDate: 'Tuesday',
+    collectionDayTime: '07:00 AM',
+    collectionDayEnabled: true,
+    beforeCollectionDate: 'Monday',
+    beforeCollectionTime: '06:00 PM',
+    beforeCollectionEnabled: true,
+    alarmTone: 'Chime Classic',
+    repeatIntervalWeeks: 1
+  },
+  {
+    binId: 'bin-home-02',
+    ownerId: 'usr-homeowner-primary',
+    serialNumber: 'SBT-00000002',
+    binType: 'Black',
+    propertyName: 'Highland Cottage',
+    houseNumber: '12',
+    street: 'High Street',
+    town: 'Lincoln',
+    county: 'Lincolnshire',
+    postcode: 'LN5 8PE',
+    country: 'United Kingdom',
+    notes: 'Grey general waste wheelie bin behind front hedge.',
+    registeredDate: '2026-07-16T09:15:00Z',
+    lastUpdated: '2026-07-16T09:15:00Z',
+    status: 'Active',
+    nextCollection: 'Friday at 07:00 AM',
+    collectionDayDate: 'Friday',
+    collectionDayTime: '07:00 AM',
+    collectionDayEnabled: true,
+    beforeCollectionDate: 'Thursday',
+    beforeCollectionTime: '06:00 PM',
+    beforeCollectionEnabled: true,
+    alarmTone: 'Bell Echo',
+    repeatIntervalWeeks: 2
   }
 ];
 
@@ -166,6 +295,30 @@ const INITIAL_REMINDERS: ReminderSchedule[] = [
     enabled: true,
     nextReminder: '2026-07-21T18:00:00',
     alarmTone: 'Chime Classic'
+  },
+  {
+    reminderId: 'rem-home-01',
+    ownerId: 'usr-homeowner-primary',
+    serialNumber: 'SBT-00000001',
+    collectionDay: 'Tuesday',
+    frequency: 'Weekly',
+    reminderOneTime: '18:00',
+    reminderTwoTime: '07:00',
+    enabled: true,
+    nextReminder: '2026-07-21T18:00:00',
+    alarmTone: 'Chime Classic'
+  },
+  {
+    reminderId: 'rem-home-02',
+    ownerId: 'usr-homeowner-primary',
+    serialNumber: 'SBT-00000002',
+    collectionDay: 'Friday',
+    frequency: 'Weekly',
+    reminderOneTime: '18:00',
+    reminderTwoTime: '07:00',
+    enabled: true,
+    nextReminder: '2026-07-24T18:00:00',
+    alarmTone: 'Bell Echo'
   }
 ];
 
@@ -211,7 +364,7 @@ const initDb = () => {
   const usersStr = localStorage.getItem('sbt_users');
   const tagsStr = localStorage.getItem('sbt_tags');
   
-  // Purge legacy fake accounts admin0115@gmail.com and standard0115@gmail.com
+  // Purge legacy fake accounts admin0115@gmail.com and standard0115@gmail.com (John Homeowner)
   let users: User[] = usersStr ? JSON.parse(usersStr) : INITIAL_USERS;
   const filteredUsers = users.filter(u => {
     const em = (u.email || '').toLowerCase().trim();
@@ -221,11 +374,19 @@ const initDb = () => {
   if (!filteredUsers.some(u => (u.email || '').toLowerCase().trim() === 'admin0115.com@gmail.com')) {
     filteredUsers.unshift(INITIAL_USERS[0]);
   }
+  if (!filteredUsers.some(u => (u.email || '').toLowerCase().trim() === 'resident@gmail.com')) {
+    filteredUsers.push(INITIAL_USERS[1]);
+  }
+
+  // Global last set avatar fallback
+  const globalLastAvatar = localStorage.getItem('sbt_last_selected_avatar');
 
   // Restore & sync persistent avatars across sessions
   filteredUsers.forEach(u => {
     const normEmail = (u.email || '').toLowerCase().trim();
-    const savedAvatar = localStorage.getItem(`sbt_avatar_${u.uid}`) || (normEmail ? localStorage.getItem(`sbt_avatar_${normEmail}`) : null);
+    const savedAvatar = localStorage.getItem(`sbt_avatar_${u.uid}`) || 
+                        (normEmail ? localStorage.getItem(`sbt_avatar_${normEmail}`) : null) ||
+                        (u.accountType === 'admin' || normEmail.startsWith('admin') ? globalLastAvatar : null);
     if (savedAvatar) {
       u.profilePhoto = savedAvatar;
       localStorage.setItem(`sbt_avatar_${u.uid}`, savedAvatar);
@@ -238,21 +399,80 @@ const initDb = () => {
 
   localStorage.setItem('sbt_users', JSON.stringify(filteredUsers));
 
+  // Sync tags: ensure homeowner tags are available or registered
   if (!tagsStr) {
     localStorage.setItem('sbt_tags', JSON.stringify(generateInitialTags()));
+  } else {
+    try {
+      const existingTags: BinTag[] = JSON.parse(tagsStr);
+      let tagsChanged = false;
+      const initialTags = generateInitialTags();
+      initialTags.forEach(initTag => {
+        const found = existingTags.find(t => t.serialNumber === initTag.serialNumber);
+        if (!found) {
+          existingTags.push(initTag);
+          tagsChanged = true;
+        }
+      });
+      if (tagsChanged) {
+        localStorage.setItem('sbt_tags', JSON.stringify(existingTags));
+      }
+    } catch {
+      localStorage.setItem('sbt_tags', JSON.stringify(generateInitialTags()));
+    }
   }
-  if (!localStorage.getItem('sbt_bins')) {
+
+  // Sync bins: ensure homeowner bins exist
+  const existingBinsStr = localStorage.getItem('sbt_bins');
+  if (!existingBinsStr) {
     localStorage.setItem('sbt_bins', JSON.stringify(INITIAL_BINS));
+  } else {
+    try {
+      const currentBins: Bin[] = JSON.parse(existingBinsStr);
+      let binsChanged = false;
+      INITIAL_BINS.forEach(initBin => {
+        if (!currentBins.some(b => b.serialNumber === initBin.serialNumber)) {
+          currentBins.push(initBin);
+          binsChanged = true;
+        }
+      });
+      if (binsChanged) {
+        localStorage.setItem('sbt_bins', JSON.stringify(currentBins));
+      }
+    } catch {
+      localStorage.setItem('sbt_bins', JSON.stringify(INITIAL_BINS));
+    }
   }
+
   if (!localStorage.getItem('sbt_reports')) {
     localStorage.setItem('sbt_reports', JSON.stringify(INITIAL_REPORTS));
   }
   if (!localStorage.getItem('sbt_messages')) {
     localStorage.setItem('sbt_messages', JSON.stringify(INITIAL_MESSAGES));
   }
-  if (!localStorage.getItem('sbt_reminders')) {
+
+  // Sync reminders
+  const existingRemStr = localStorage.getItem('sbt_reminders');
+  if (!existingRemStr) {
     localStorage.setItem('sbt_reminders', JSON.stringify(INITIAL_REMINDERS));
+  } else {
+    try {
+      const currentRem: ReminderSchedule[] = JSON.parse(existingRemStr);
+      let remChanged = false;
+      INITIAL_REMINDERS.forEach(initRem => {
+        if (!currentRem.some(r => r.serialNumber === initRem.serialNumber)) {
+          currentRem.push(initRem);
+          remChanged = true;
+        }
+      });
+      if (remChanged) {
+        localStorage.setItem('sbt_reminders', JSON.stringify(currentRem));
+      }
+    } catch {
+      localStorage.setItem('sbt_reminders', JSON.stringify(INITIAL_REMINDERS));
+    }
   }
+
   if (!localStorage.getItem('sbt_notifications')) {
     localStorage.setItem('sbt_notifications', JSON.stringify(INITIAL_NOTIFICATIONS));
   }
@@ -267,12 +487,21 @@ const initDb = () => {
       {
         id: 'prof-admin',
         userId: 'usr-admin-primary',
-        email: 'admin0115.com@gmail.com',
         firstName: 'Admin',
         lastName: 'Primary',
         phoneNumber: '+44 7700 900100',
         postcode: 'SW1A 1AA',
         avatarUrl: adminAvatar,
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'prof-admin-typo',
+        userId: 'usr-admin-typo',
+        firstName: 'Admin',
+        lastName: 'Typo',
+        phoneNumber: '+44 7700 900100',
+        postcode: 'SW1A 1AA',
+        avatarUrl: '',
         updatedAt: new Date().toISOString()
       }
     ]));
@@ -283,6 +512,17 @@ const initDb = () => {
       {
         id: 'np-admin',
         userId: 'usr-admin-primary',
+        pushEnabled: true,
+        emailEnabled: true,
+        remindersAlerts: true,
+        foundBinAlerts: true,
+        damageAlerts: true,
+        messageAlerts: true,
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'np-admin-typo',
+        userId: 'usr-admin-typo',
         pushEnabled: true,
         emailEnabled: true,
         remindersAlerts: true,
@@ -304,6 +544,15 @@ const initDb = () => {
         notificationsFrequency: 'instantly',
         marketingConsent: false,
         updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'set-admin-typo',
+        userId: 'usr-admin-typo',
+        theme: 'dark',
+        language: 'en',
+        notificationsFrequency: 'instantly',
+        marketingConsent: false,
+        updatedAt: new Date().toISOString()
       }
     ]));
   }
@@ -319,6 +568,17 @@ const initDb = () => {
         notificationsCount: 2,
         upcomingCollectionsCount: 3,
         supportTicketsCount: 2,
+        lastRefresh: new Date().toISOString()
+      },
+      {
+        id: 'dash-admin-typo',
+        userId: 'usr-admin-typo',
+        foundReportsCount: 0,
+        damageReportsCount: 0,
+        unreadMessagesCount: 0,
+        notificationsCount: 0,
+        upcomingCollectionsCount: 0,
+        supportTicketsCount: 0,
         lastRefresh: new Date().toISOString()
       }
     ]));
@@ -362,7 +622,7 @@ const initDb = () => {
   }
 };
 
-// Helper to validate serial numbers
+// Helper to get and set
 const isValidSerial = (serial: any): boolean => {
   if (typeof serial !== 'string') return false;
   const trimmed = serial.trim().toUpperCase();
@@ -429,7 +689,7 @@ const triggerDbChange = () => {
   });
 };
 
-// Enable cross-tab synchronicity
+// Enable cross-tab / cross-iframe synchronicity for absolute Nhost realtime feel
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
     if (event.key && event.key.startsWith('sbt_')) {
@@ -442,7 +702,13 @@ const getLoggedInUser = (): User | null => {
   const loggedInId = localStorage.getItem('sbt_logged_in_uid');
   if (!loggedInId) return null;
   const users = getFromStorage<User[]>('sbt_users');
-  return users.find(u => u.uid === loggedInId && u.status === 'Active') || null;
+  const lowerId = loggedInId.toLowerCase().trim();
+  return users.find(u => 
+    (u.uid === loggedInId || 
+     (u.email && u.email.toLowerCase().trim() === lowerId) || 
+     ((u as any).id && (u as any).id === loggedInId)
+    ) && u.status === 'Active'
+  ) || null;
 };
 
 const setToStorage = <T>(key: string, data: T): void => {
@@ -457,13 +723,21 @@ export const mockDb = {
     const loggedInId = localStorage.getItem('sbt_logged_in_uid');
     if (!loggedInId) return null;
     const users = getFromStorage<User[]>('sbt_users');
-    const user = users.find(u => u.uid === loggedInId && u.status === 'Active');
+    const lowerId = loggedInId.toLowerCase().trim();
+    const user = users.find(u => 
+      (u.uid === loggedInId || 
+       (u.email && u.email.toLowerCase().trim() === lowerId) || 
+       ((u as any).id && (u as any).id === loggedInId)
+      ) && u.status === 'Active'
+    );
     if (!user) return null;
 
     // Restore persistent avatar by UID, email, or profile record
     const normEmail = (user.email || '').toLowerCase().trim();
+    const globalLastAvatar = localStorage.getItem('sbt_last_selected_avatar');
     const savedAvatar = localStorage.getItem(`sbt_avatar_${user.uid}`) || 
-                        (normEmail ? localStorage.getItem(`sbt_avatar_${normEmail}`) : null);
+                        (normEmail ? localStorage.getItem(`sbt_avatar_${normEmail}`) : null) ||
+                        (user.accountType === 'admin' || normEmail.startsWith('admin') ? globalLastAvatar : null);
     
     if (savedAvatar) {
       user.profilePhoto = savedAvatar;
@@ -472,6 +746,7 @@ export const mockDb = {
     } else if (user.profilePhoto) {
       localStorage.setItem(`sbt_avatar_${user.uid}`, user.profilePhoto);
       if (normEmail) localStorage.setItem(`sbt_avatar_${normEmail}`, user.profilePhoto);
+      localStorage.setItem('sbt_last_selected_avatar', user.profilePhoto);
     } else {
       const profiles = getFromStorage<UserProfile[]>('sbt_profiles');
       const p = profiles.find(pr => pr.userId === user.uid || (normEmail && pr.email && pr.email.toLowerCase() === normEmail));
@@ -479,6 +754,7 @@ export const mockDb = {
         user.profilePhoto = p.avatarUrl;
         localStorage.setItem(`sbt_avatar_${user.uid}`, p.avatarUrl);
         if (normEmail) localStorage.setItem(`sbt_avatar_${normEmail}`, p.avatarUrl);
+        localStorage.setItem('sbt_last_selected_avatar', p.avatarUrl);
       }
     }
 
@@ -516,6 +792,7 @@ export const mockDb = {
     const users = getFromStorage<User[]>('sbt_users');
     const normalizedEmail = email.trim().toLowerCase();
     
+    // Direct match against saved users
     const user = users.find(u => u.email.toLowerCase() === normalizedEmail);
     
     if (!user) {
@@ -527,15 +804,19 @@ export const mockDb = {
     }
 
     // Restore & sync persistent avatar for login
+    const globalLastAvatar = localStorage.getItem('sbt_last_selected_avatar');
     const savedAvatar = localStorage.getItem(`sbt_avatar_${user.uid}`) || 
-                        localStorage.getItem(`sbt_avatar_${normalizedEmail}`);
+                        localStorage.getItem(`sbt_avatar_${normalizedEmail}`) ||
+                        (user.accountType === 'admin' || normalizedEmail.startsWith('admin') ? globalLastAvatar : null);
     if (savedAvatar) {
       user.profilePhoto = savedAvatar;
       localStorage.setItem(`sbt_avatar_${user.uid}`, savedAvatar);
       localStorage.setItem(`sbt_avatar_${normalizedEmail}`, savedAvatar);
+      localStorage.setItem('sbt_last_selected_avatar', savedAvatar);
     } else if (user.profilePhoto) {
       localStorage.setItem(`sbt_avatar_${user.uid}`, user.profilePhoto);
       localStorage.setItem(`sbt_avatar_${normalizedEmail}`, user.profilePhoto);
+      localStorage.setItem('sbt_last_selected_avatar', user.profilePhoto);
     } else {
       const profiles = getFromStorage<UserProfile[]>('sbt_profiles');
       const p = profiles.find(pr => pr.userId === user.uid || (pr.email && pr.email.toLowerCase() === normalizedEmail));
@@ -613,10 +894,11 @@ export const mockDb = {
     const normalizedEmail = email.trim().toLowerCase();
     
     let user = users.find(u => u.email.toLowerCase() === normalizedEmail);
-    
+    const globalLastAvatar = localStorage.getItem('sbt_last_selected_avatar');
     const initialAvatar = avatarUrl || 
                           localStorage.getItem(`sbt_avatar_${normalizedEmail}`) || 
                           (user ? localStorage.getItem(`sbt_avatar_${user.uid}`) : null) || 
+                          (normalizedEmail.startsWith('admin') ? globalLastAvatar : null) ||
                           '';
 
     if (!user) {
@@ -659,7 +941,7 @@ export const mockDb = {
       setToStorage('sbt_profiles', profiles);
     } else {
       // Restore persistent avatar on existing user login
-      const savedAvatar = initialAvatar || user.profilePhoto || '';
+      const savedAvatar = initialAvatar || user.profilePhoto || globalLastAvatar || '';
       if (savedAvatar) {
         user.profilePhoto = savedAvatar;
       }
@@ -668,6 +950,7 @@ export const mockDb = {
     if (user.profilePhoto) {
       localStorage.setItem(`sbt_avatar_${user.uid}`, user.profilePhoto);
       localStorage.setItem(`sbt_avatar_${normalizedEmail}`, user.profilePhoto);
+      localStorage.setItem('sbt_last_selected_avatar', user.profilePhoto);
     }
     
     // Set logged in session
@@ -707,10 +990,12 @@ export const mockDb = {
   logout: (): void => {
     const loggedInId = localStorage.getItem('sbt_logged_in_uid');
     if (loggedInId) {
+      // Mark session as inactive
       const sessions = getFromStorage<DeviceSession[]>('sbt_device_sessions');
       const updated = sessions.map(s => s.userId === loggedInId ? { ...s, isActive: false } : s);
       setToStorage('sbt_device_sessions', updated);
 
+      // Add audit log
       const auditLogs = getFromStorage<AuditLogEntry[]>('sbt_audit_logs');
       auditLogs.push({
         id: 'audit-' + generateId(),
@@ -734,6 +1019,8 @@ export const mockDb = {
       return { success: false, error: 'An account with this email address already exists.' };
     }
 
+    // Determine accountType. Per requirement:
+    // admin0115@gmail.com and admin0115.com@gmail.com are admin accounts. Rest are normal users.
     const isAdmin = normalizedEmail === 'admin0115@gmail.com' || normalizedEmail === 'admin0115.com@gmail.com';
 
     const newUser: User = {
@@ -764,7 +1051,6 @@ export const mockDb = {
     const newProfile: UserProfile = {
       id: 'prof-' + generateId(),
       userId: newUser.uid,
-      email: normalizedEmail,
       firstName,
       lastName,
       phoneNumber,
@@ -813,7 +1099,7 @@ export const mockDb = {
       foundReportsCount: 0,
       damageReportsCount: 0,
       unreadMessagesCount: 0,
-      notificationsCount: 1,
+      notificationsCount: 1, // Welcome notification
       upcomingCollectionsCount: 0,
       supportTicketsCount: 0,
       lastRefresh: new Date().toISOString()
@@ -862,8 +1148,10 @@ export const mockDb = {
     histories.push(newHist);
     setToStorage('sbt_registration_history', histories);
 
+    // Automatically log them in
     localStorage.setItem('sbt_logged_in_uid', newUser.uid);
 
+    // Create system notification
     mockDb.addNotification(
       newUser.uid,
       'Account',
@@ -874,6 +1162,7 @@ export const mockDb = {
     return { success: true, user: newUser };
   },
 
+  // --- PROFILE DATA SERVICES (Real-time Simulated Accessors) ---
   getProfile: (userId: string): UserProfile | null => {
     const profiles = getFromStorage<UserProfile[]>('sbt_profiles');
     return profiles.find(p => p.userId === userId) || null;
@@ -1022,6 +1311,7 @@ export const mockDb = {
       console.warn('[Nhost Cloud Sync] Exception saving support ticket:', e);
     }
 
+    // Log action to Registration History & Audit Log
     const histories = getFromStorage<RegistrationHistoryItem[]>('sbt_registration_history');
     histories.push({
       id: 'hist-' + generateId(),
@@ -1044,6 +1334,7 @@ export const mockDb = {
     });
     setToStorage('sbt_audit_logs', auditLogs);
 
+    // Update Dashboard Ticket Count
     const dashboards = getFromStorage<UserDashboardRecord[]>('sbt_user_dashboards');
     const dashIdx = dashboards.findIndex(d => d.userId === userId);
     if (dashIdx !== -1) {
@@ -1063,6 +1354,7 @@ export const mockDb = {
       tickets[index].updatedAt = new Date().toISOString();
       setToStorage('sbt_support_tickets', tickets);
 
+      // Sync status update to Nhost / Hasura backend support_tickets table
       try {
         nhost.graphql.request({
           query: `mutation UpdateSupportTicket($id: String!, $status: String!) {
@@ -1083,6 +1375,7 @@ export const mockDb = {
     const filtered = tickets.filter(t => t.id !== ticketId);
     setToStorage('sbt_support_tickets', filtered);
 
+    // Sync deletion to Nhost / Hasura backend support_tickets table
     try {
       nhost.graphql.request({
         query: `mutation DeleteSupportTicket($id: String!) {
@@ -1102,9 +1395,9 @@ export const mockDb = {
     if (!user) return [];
     const users = getFromStorage<User[]>('sbt_users');
     
+    // Ensure avatar URLs are attached from persistent store
     users.forEach(u => {
-      const normEmail = (u.email || '').toLowerCase().trim();
-      const saved = localStorage.getItem(`sbt_avatar_${u.uid}`) || (normEmail ? localStorage.getItem(`sbt_avatar_${normEmail}`) : null);
+      const saved = localStorage.getItem(`sbt_avatar_${u.uid}`);
       if (saved) {
         u.profilePhoto = saved;
       }
@@ -1124,16 +1417,20 @@ export const mockDb = {
     users[index] = { ...users[index], ...fields } as User;
     const userEmail = (users[index].email || '').toLowerCase().trim();
     
-    // 1. Persistent dedicated avatar store by UID and Email
+    // 1. Persistent dedicated avatar store by UID, Email, and global fallback
     if (fields.profilePhoto !== undefined) {
       if (fields.profilePhoto) {
         localStorage.setItem(`sbt_avatar_${uid}`, fields.profilePhoto);
         if (userEmail) localStorage.setItem(`sbt_avatar_${userEmail}`, fields.profilePhoto);
+        localStorage.setItem('sbt_last_selected_avatar', fields.profilePhoto);
       } else {
         localStorage.removeItem(`sbt_avatar_${uid}`);
         if (userEmail) localStorage.removeItem(`sbt_avatar_${userEmail}`);
+        localStorage.removeItem('sbt_last_selected_avatar');
       }
     }
+
+    setToStorage('sbt_users', users);
 
     // 2. Synchronize sbt_profiles table
     const profiles = getFromStorage<UserProfile[]>('sbt_profiles');
@@ -1158,7 +1455,7 @@ export const mockDb = {
         firstName: users[index].firstName,
         lastName: users[index].lastName,
         phoneNumber: users[index].phoneNumber,
-        postcode: users[index].postcode || '',
+        postcode: users[index].postcode,
         avatarUrl: photoToSave,
         updatedAt: new Date().toISOString()
       });
@@ -1196,16 +1493,19 @@ export const mockDb = {
     const filtered = users.filter(u => u.uid !== uid);
     setToStorage('sbt_users', filtered);
     
+    // Disassociate bins owned by this user
     const bins = getFromStorage<Bin[]>('sbt_bins');
     const userBins = bins.filter(b => b.ownerId === uid);
     const updatedBins = bins.filter(b => b.ownerId !== uid);
     setToStorage('sbt_bins', updatedBins);
 
+    // Delete reminders
     const reminders = getFromStorage<any[]>('sbt_reminders');
     const userSerials = new Set(userBins.map(b => b.serialNumber));
     const remainingReminders = reminders.filter(r => !userSerials.has(r.serialNumber));
     setToStorage('sbt_reminders', remainingReminders);
 
+    // Release tags
     const tags = getFromStorage<BinTag[]>('sbt_tags');
     const updatedTags = tags.map(t => {
       if (t.ownerId === uid) {
@@ -1215,6 +1515,7 @@ export const mockDb = {
     });
     setToStorage('sbt_tags', updatedTags);
 
+    // Clean up profiles, notifications, messages
     const profiles = getFromStorage<any[]>('sbt_profiles');
     setToStorage('sbt_profiles', profiles.filter((p: any) => p.userId !== uid));
 
@@ -1278,6 +1579,7 @@ export const mockDb = {
     return true;
   },
 
+  // --- SERIAL NUMBER / TAG SERVICE ---
   validateSerialNumber: (serialNumber: string): { valid: boolean; tag: BinTag | null; error?: string } => {
     let raw = (serialNumber || '').trim().toUpperCase();
     if (!raw) {
@@ -1294,6 +1596,7 @@ export const mockDb = {
     } else if (raw.startsWith('SBT')) {
       digits = raw.substring(3).trim();
     } else if (/^\d+$/.test(raw)) {
+      // User typed ONLY numbers -> Auto-add SBT- prefix and pad to 8 digits
       digits = raw.trim();
     } else {
       return {
@@ -1303,10 +1606,12 @@ export const mockDb = {
       };
     }
 
+    // Auto-pad 1-8 digits to 8 digits with leading zeros
     if (/^\d{1,8}$/.test(digits)) {
       digits = digits.padStart(8, '0');
     }
 
+    // Enforce EXACTLY 8 digits
     if (!/^\d{8}$/.test(digits)) {
       return { 
         valid: false, 
@@ -1329,6 +1634,8 @@ export const mockDb = {
     const tags = getFromStorage<BinTag[]>('sbt_tags');
     let tag = tags.find(t => t.serialNumber === normalized) || null;
 
+    // If valid serial but doesn't exist in our pre-seeds, dynamically manufacture it!
+    // This supports our scale promise (50,000,000 unique tags).
     if (!tag) {
       tag = {
         serialNumber: normalized,
@@ -1347,6 +1654,21 @@ export const mockDb = {
     }
 
     if (tag.status === 'Registered') {
+      const user = getLoggedInUser();
+      const userUids = new Set<string>();
+      if (user) {
+        userUids.add(user.uid);
+        if ((user as any).id) userUids.add((user as any).id);
+        if (user.email) {
+          userUids.add(user.email);
+          userUids.add(user.email.toLowerCase());
+        }
+        const uuid = toUuid(user.uid);
+        if (uuid) userUids.add(uuid);
+      }
+      if (tag.ownerId && (userUids.has(tag.ownerId) || userUids.has(tag.ownerId.toLowerCase()))) {
+        return { valid: true, tag };
+      }
       return { valid: false, tag, error: 'This tag has already been registered to another user' };
     }
 
@@ -1362,7 +1684,13 @@ export const mockDb = {
     }
     const userUids = new Set<string>([user.uid]);
     if ((user as any).id) userUids.add((user as any).id);
-    return tags.filter(t => t.ownerId && userUids.has(t.ownerId));
+    if (user.email) {
+      userUids.add(user.email);
+      userUids.add(user.email.toLowerCase());
+    }
+    const uuid = toUuid(user.uid);
+    if (uuid) userUids.add(uuid);
+    return tags.filter(t => t.ownerId && (userUids.has(t.ownerId) || userUids.has(t.ownerId.toLowerCase())));
   },
 
   updateTag: (serialNumber: string, fields: Partial<BinTag>): BinTag => {
@@ -1388,6 +1716,7 @@ export const mockDb = {
     }
     setToStorage('sbt_tags', tags);
 
+    // Keep sbt_bins in sync if tag is registered/assigned
     if (fields.status === 'Registered' && fields.ownerId) {
       const bins = getFromStorage<Bin[]>('sbt_bins');
       const binIdx = bins.findIndex(b => b.serialNumber === normalized);
@@ -1455,23 +1784,38 @@ export const mockDb = {
 
     const userUids = new Set<string>();
     userUids.add(user.uid);
-    if (ownerId) userUids.add(ownerId);
+    if (ownerId) {
+      userUids.add(ownerId);
+      userUids.add(ownerId.toLowerCase());
+    }
     if ((user as any).id) userUids.add((user as any).id);
+    if (user.email) {
+      userUids.add(user.email);
+      userUids.add(user.email.toLowerCase());
+    }
+    const uuid = toUuid(user.uid);
+    if (uuid) userUids.add(uuid);
+
+    const isMatch = (oid?: string | null) => {
+      if (!oid) return false;
+      return userUids.has(oid) || userUids.has(oid.toLowerCase());
+    };
 
     if (user.accountType === 'admin') {
-      if (ownerId) {
-        return bins.filter(b => b.ownerId && userUids.has(b.ownerId));
+      if (ownerId && ownerId !== user.uid) {
+        return bins.filter(b => isMatch(b.ownerId));
       }
       return bins;
     }
 
-    let userBins = bins.filter(b => b.ownerId && userUids.has(b.ownerId));
+    let userBins = bins.filter(b => isMatch(b.ownerId));
 
+    // Cross-check registered/assigned tags in sbt_tags
     const tags = getFromStorage<BinTag[]>('sbt_tags');
     let binsUpdated = false;
 
     for (const tag of tags) {
-      if (tag.status === 'Registered' && tag.ownerId && userUids.has(tag.ownerId)) {
+      if (tag.status === 'Registered' && isMatch(tag.ownerId)) {
         const alreadyInUserBins = userBins.some(b => b.serialNumber === tag.serialNumber);
         if (!alreadyInUserBins) {
           const globalBin = bins.find(b => b.serialNumber === tag.serialNumber);
@@ -1484,18 +1828,25 @@ export const mockDb = {
               binId: 'bin-' + Math.random().toString(36).substring(2, 9),
               ownerId: user.uid,
               serialNumber: tag.serialNumber,
-              binType: (tag as any).bin_colour || 'Black',
+              binType: (tag as any).bin_colour || 'Green',
               propertyName: (tag as any).property_name || '',
-              houseNumber: '10',
-              street: 'High Street',
-              town: 'London',
-              county: 'Greater London',
-              postcode: 'SW1A 1AA',
+              houseNumber: (tag as any).house_number || ((user as any).houseNumber || '12'),
+              street: (tag as any).street_name || ((user as any).street || 'High Street'),
+              town: (tag as any).town || ((user as any).town || 'Lincoln'),
+              county: 'Lincolnshire',
+              postcode: (tag as any).postcode || (user.postcode || 'LN5 8PE'),
               country: 'United Kingdom',
               registeredDate: tag.registeredDate || new Date().toISOString(),
               lastUpdated: new Date().toISOString(),
               status: 'Active',
-              nextCollection: 'Tuesday at 07:00'
+              nextCollection: 'Tuesday at 07:00 AM',
+              collectionDayDate: 'Tuesday',
+              collectionDayTime: '07:00 AM',
+              collectionDayEnabled: true,
+              beforeCollectionDate: 'Monday',
+              beforeCollectionTime: '06:00 PM',
+              beforeCollectionEnabled: true,
+              alarmTone: 'Chime Classic'
             };
             bins.push(newBin);
             userBins.push(newBin);
@@ -1522,12 +1873,14 @@ export const mockDb = {
       return { success: false, error: 'This Smart Bin Tag is already registered to another user account.' };
     }
 
+    // Register tag
     mockDb.updateTag(validation.tag.serialNumber, {
       status: 'Registered',
       ownerId,
       registeredDate: new Date().toISOString()
     });
 
+    // Create or update the bin
     const bins = getFromStorage<Bin[]>('sbt_bins');
     const existingIndex = bins.findIndex(b => b.serialNumber === validation.tag!.serialNumber);
 
@@ -1548,7 +1901,7 @@ export const mockDb = {
         ...binDetails,
         binId: 'bin-' + generateId(),
         ownerId,
-        serialNumber: validation.tag.serialNumber,
+        serialNumber: validation.tag.serialNumber, // standardized format
         registeredDate: new Date().toISOString(),
         lastUpdated: new Date().toISOString(),
         status: 'Active',
@@ -1558,6 +1911,7 @@ export const mockDb = {
     }
     setToStorage('sbt_bins', bins);
 
+    // Seed reminders based on user-entered values
     const reminders = getFromStorage<ReminderSchedule[]>('sbt_reminders');
     const defaultDays: Record<string, string> = {
       Black: 'Thursday',
@@ -1601,6 +1955,7 @@ export const mockDb = {
     }
     setToStorage('sbt_reminders', reminders);
 
+    // Notification
     mockDb.addNotification(
       ownerId,
       'Account',
@@ -1641,6 +1996,11 @@ export const mockDb = {
     }
 
     const originalBin = bins[index];
+    const user = getLoggedInUser();
+
+    if (user && user.accountType !== 'admin' && originalBin.ownerId && user.uid && originalBin.ownerId !== user.uid) {
+      // Don't block update if owner matches or isn't set
+    }
 
     const updatedBin = { 
       ...originalBin, 
@@ -1649,6 +2009,7 @@ export const mockDb = {
     } as Bin;
     bins[index] = updatedBin;
 
+    // Synchronize tag status if state changed
     if (fields.status === 'Lost') {
       mockDb.updateTag(originalBin.serialNumber, { status: 'Lost' });
     } else if (fields.status === 'Active' && originalBin.status === 'Lost') {
@@ -1669,6 +2030,7 @@ export const mockDb = {
           colDay = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
         }
       } else {
+        // Default based on type
         const defaultDays: Record<string, string> = {
           Black: 'Thursday',
           Green: 'Tuesday',
@@ -1684,6 +2046,7 @@ export const mockDb = {
       const alarmTone = updatedBin.alarmTone || 'Chime Classic';
 
       if (rIndex === -1) {
+        // Create new reminder schedule
         const newReminder: ReminderSchedule = {
           reminderId: 'rem-' + generateId(),
           ownerId: updatedBin.ownerId,
@@ -1719,15 +2082,18 @@ export const mockDb = {
     const bin = bins.find(b => b.binId === binId);
     if (!bin) return false;
 
+    // Release tag
     mockDb.updateTag(bin.serialNumber, {
       status: 'Available',
       ownerId: null,
       registeredDate: null
     });
 
+    // Remove reminders
     const reminders = getFromStorage<ReminderSchedule[]>('sbt_reminders');
     setToStorage('sbt_reminders', reminders.filter(r => r.serialNumber !== bin.serialNumber));
 
+    // Remove bin
     setToStorage('sbt_bins', bins.filter(b => b.binId !== binId));
     return true;
   },
@@ -1735,18 +2101,21 @@ export const mockDb = {
   adminResetTag: (serialNumber: string): boolean => {
     const normalized = serialNumber.trim().toUpperCase();
     
+    // Find linked bin and delete it if exists
     const bins = getFromStorage<Bin[]>('sbt_bins');
     const linkedBin = bins.find(b => b.serialNumber === normalized);
     if (linkedBin) {
       mockDb.deleteBin(linkedBin.binId);
     }
     
+    // Always force tag reset state (removes ownerId, sets registeredDate to null, status to Available)
     mockDb.updateTag(normalized, {
       status: 'Available',
       ownerId: null,
       registeredDate: null
     });
     
+    // Force remove reminders
     const reminders = getFromStorage<any[]>('sbt_reminders');
     const remainingReminders = reminders.filter(r => r.serialNumber !== normalized);
     setToStorage('sbt_reminders', remainingReminders);
@@ -1768,17 +2137,17 @@ export const mockDb = {
   calculateNextCollection: (binType: string): string => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const defaultDays: Record<string, number> = {
-      Black: 4,
-      Green: 2,
-      Blue: 3,
-      Brown: 5
+      Black: 4, // Thursday
+      Green: 2, // Tuesday
+      Blue: 3, // Wednesday
+      Brown: 5  // Friday
     };
-    const targetDayNum = defaultDays[binType] || 1;
+    const targetDayNum = defaultDays[binType] || 1; // Default Monday
     
     const today = new Date();
     const currentDayNum = today.getDay();
     let daysUntil = targetDayNum - currentDayNum;
-    if (daysUntil <= 0) daysUntil += 7;
+    if (daysUntil <= 0) daysUntil += 7; // Next week
 
     const targetDate = new Date(today);
     targetDate.setDate(today.getDate() + daysUntil);
@@ -1803,6 +2172,7 @@ export const mockDb = {
   },
 
   submitReport: (reportData: Omit<BinReport, 'reportId' | 'createdAt' | 'status' | 'binId'>): { success: boolean; report: BinReport; error?: string } => {
+    // Verify serial tag
     const validation = mockDb.validateSerialNumber(reportData.serialNumber);
     if (!validation.valid || !validation.tag) {
       return { success: false, report: {} as BinReport, error: validation.error || 'Invalid serial number' };
@@ -1823,6 +2193,7 @@ export const mockDb = {
     reports.push(newReport);
     setToStorage('sbt_reports', reports);
 
+    // Nhost Hasura Data Sync
     try {
       nhost.graphql.request({
         query: `mutation InsertReport($id: String!, $serial: String!, $type: String!, $desc: String, $loc: String, $postcode: String, $house: String, $status: String) {
@@ -1852,6 +2223,7 @@ export const mockDb = {
       console.warn('[Nhost Cloud Sync] Exception saving report:', e);
     }
 
+    // If bin is linked, update its status
     if (linkedBin) {
       if (reportData.reportType === 'Found') {
         mockDb.updateBin(linkedBin.binId, { status: 'Recovered' });
@@ -1860,6 +2232,7 @@ export const mockDb = {
         mockDb.updateBin(linkedBin.binId, { status: 'Damaged' });
       }
 
+      // Notify Owner (Dashboard Alert)
       const notifyTitle = reportData.reportType === 'Found' 
         ? 'Your Wheelie Bin Has Been Found!' 
         : 'Damage Reported on Your Smart Bin';
@@ -1900,6 +2273,7 @@ export const mockDb = {
     reports[reportIndex].status = 'Resolved';
     setToStorage('sbt_reports', reports);
     
+    // Update linked bin back to Active
     if (report.binId) {
       mockDb.updateBin(report.binId, { status: 'Active' });
     }
@@ -1957,7 +2331,7 @@ export const mockDb = {
     }
     const bins = getFromStorage<Bin[]>('sbt_bins');
     const userSerials = new Set(bins.filter(b => b.ownerId === user.uid).map(b => b.serialNumber));
-    return messages.filter(m => userSerials.has(m.serialNumber) || m.ownerId === user.uid);
+    return messages.filter(m => userSerials.has(m.serialNumber) || m.ownerId === user.uid || m.senderEmail === user.email);
   },
 
   sendPrivateMessage: (serialNumber: string, senderName: string, senderEmail: string, senderPhone: string | undefined, messageText: string, targetOwnerId?: string): { success: boolean; error?: string } => {
@@ -1992,33 +2366,56 @@ export const mockDb = {
     messages.push(newMessage);
     setToStorage('sbt_messages', messages);
 
+    // Synchronize to Nhost Hasura live database (messages table)
     try {
+      const loggedUser = getLoggedInUser();
+      const senderUid = loggedUser?.uid || 'guest-user';
+      const recipientUid = ownerId === 'ADMIN' ? 'admin-001' : ownerId;
+
       nhost.graphql.request({
-        query: `mutation InsertMessage($id: String!, $serial: String!, $owner_id: String!, $sName: String!, $sEmail: String!, $sPhone: String, $msg: String!) {
-          insert_messages_one(object: {
-            id: $id,
-            serial_number: $serial,
-            owner_id: $owner_id,
-            sender_name: $sName,
-            sender_email: $sEmail,
-            sender_phone: $sPhone,
-            message: $msg
-          }) { id }
+        query: `mutation InsertMessage($id: String!, $senderId: String!, $recipientId: String!, $content: String!, $isRead: Boolean!) {
+          insert_messages_one(
+            object: {
+              id: $id,
+              sender_id: $senderId,
+              recipient_id: $recipientId,
+              content: $content,
+              is_read: $isRead
+            },
+            on_conflict: {
+              constraint: messages_pkey,
+              update_columns: [content, is_read]
+            }
+          ) { id }
         }`,
         variables: {
           id: newMessage.messageId,
-          serial: resolvedSerial,
-          owner_id: ownerId,
-          sName: senderName,
-          sEmail: senderEmail,
-          sPhone: senderPhone || '',
-          msg: messageText
+          senderId: senderUid,
+          recipientId: recipientUid,
+          content: `[Tag: ${resolvedSerial} | From: ${senderName} (${senderEmail})] ${messageText}`,
+          isRead: false
         }
-      }).catch(err => console.warn('[Nhost Cloud Sync] Message save warning:', err));
+      }).catch(err => {
+        // Fallback for custom columns if present
+        nhost.graphql.request({
+          query: `mutation InsertMessageFallback($id: String!, $senderId: String!, $recipientId: String!, $content: String!) {
+            insert_messages(objects: [{ id: $id, sender_id: $senderId, recipient_id: $recipientId, content: $content }]) {
+              affected_rows
+            }
+          }`,
+          variables: {
+            id: newMessage.messageId,
+            senderId: senderUid,
+            recipientId: recipientUid,
+            content: messageText
+          }
+        }).catch(fallbackErr => console.warn('[Nhost Message Sync Fallback]', fallbackErr));
+      });
     } catch (e) {
       console.warn('[Nhost Cloud Sync] Exception saving message:', e);
     }
 
+    // Notify Owner
     if (ownerId && ownerId !== 'ADMIN') {
       mockDb.addNotification(
         ownerId,
@@ -2032,11 +2429,41 @@ export const mockDb = {
     return { success: true };
   },
 
+  updateMessage: (messageId: string, updates: Partial<PrivateMessage>): boolean => {
+    const messages = getFromStorage<PrivateMessage[]>('sbt_messages');
+    const index = messages.findIndex(m => m.messageId === messageId);
+    if (index === -1) return false;
+
+    messages[index] = { ...messages[index], ...updates };
+    setToStorage('sbt_messages', messages);
+
+    // Sync update to Nhost Hasura
+    try {
+      const isReadVal = updates.status === 'Read';
+      nhost.graphql.request({
+        query: `mutation UpdateMessageInCloud($id: String!, $isRead: Boolean!) {
+          update_messages(
+            where: { id: { _eq: $id } },
+            _set: { is_read: $isRead }
+          ) {
+            affected_rows
+          }
+        }`,
+        variables: { id: messageId, isRead: isReadVal }
+      }).catch(err => console.warn('[Nhost Cloud Sync] Update message warning:', err));
+    } catch (e) {
+      console.warn('[Nhost Cloud Sync] Exception updating message:', e);
+    }
+
+    return true;
+  },
+
   deleteMessage: (messageId: string): void => {
     const messages = getFromStorage<PrivateMessage[]>('sbt_messages');
     const filtered = messages.filter(m => m.messageId !== messageId);
     setToStorage('sbt_messages', filtered);
 
+    // Sync deletion to Nhost / Hasura backend messages table
     try {
       nhost.graphql.request({
         query: `mutation DeleteMessage($id: String!) {
@@ -2057,6 +2484,20 @@ export const mockDb = {
     if (index !== -1) {
       messages[index].status = 'Read';
       setToStorage('sbt_messages', messages);
+
+      // Sync read state to Nhost
+      try {
+        nhost.graphql.request({
+          query: `mutation MarkMessageRead($id: String!) {
+            update_messages(where: { id: { _eq: $id } }, _set: { is_read: true }) {
+              affected_rows
+            }
+          }`,
+          variables: { id: messageId }
+        }).catch(err => console.warn('[Nhost Cloud Sync] Read message warning:', err));
+      } catch (e) {
+        console.warn('[Nhost Cloud Sync] Exception updating message read state:', e);
+      }
     }
   },
 
@@ -2069,6 +2510,11 @@ export const mockDb = {
   addNotification: (ownerId: string, type: NotificationItem['type'], title: string, body: string, actionUrl?: string): NotificationItem => {
     const notifications = getFromStorage<NotificationItem[]>('sbt_notifications');
     
+    // Check if user has notification preferences enabled for this alert type
+    const users = getFromStorage<User[]>('sbt_users');
+    const user = users.find(u => u.uid === ownerId);
+    
+    // If user exists and alerts are configured, we still write to db, but maybe suppress client push
     const newNotif: NotificationItem = {
       notificationId: 'not-' + generateId(),
       ownerId,
@@ -2081,14 +2527,16 @@ export const mockDb = {
       actionUrl
     };
 
-    notifications.unshift(newNotif);
+    notifications.unshift(newNotif); // latest first
     setToStorage('sbt_notifications', notifications);
 
+    // Dispatch Native OS Pop-up / Push Notification to Phone / Tablet Home Screen
     sendNativeDeviceNotification(title, body, {
       tag: newNotif.notificationId,
       url: actionUrl || '/'
     });
 
+    // Nhost Hasura Data Sync
     try {
       nhost.graphql.request({
         query: `mutation InsertNotification($id: String!, $user_id: String!, $title: String!, $body: String!, $read: Boolean!) {
@@ -2107,9 +2555,12 @@ export const mockDb = {
           body: body,
           read: false
         }
-      }).catch(err => {});
-    } catch (e) {}
-
+      }).catch(err => {
+        // Silent fallback if remote Nhost table structure differs
+      });
+    } catch (e) {
+      // Ignore exception
+    }
     return newNotif;
   },
 
@@ -2147,10 +2598,42 @@ export const mockDb = {
     const reminders = getFromStorage<ReminderSchedule[]>('sbt_reminders');
     const user = getLoggedInUser();
     if (!user) return [];
-    if (user.accountType === 'admin') {
-      return reminders.filter(r => r.ownerId === ownerId);
+
+    const userUids = new Set<string>();
+    userUids.add(user.uid);
+    if (ownerId) {
+      userUids.add(ownerId);
+      userUids.add(ownerId.toLowerCase());
     }
-    return reminders.filter(r => r.ownerId === user.uid);
+    if ((user as any).id) userUids.add((user as any).id);
+    if (user.email) {
+      userUids.add(user.email);
+      userUids.add(user.email.toLowerCase());
+    }
+    const uuid = toUuid(user.uid);
+    if (uuid) userUids.add(uuid);
+
+    // Also get user's registered bin serials
+    const userBins = mockDb.getBins(user.uid);
+    const userSerials = new Set<string>(userBins.map(b => b.serialNumber));
+
+    const isMatch = (r: ReminderSchedule) => {
+      if (r.ownerId && (userUids.has(r.ownerId) || userUids.has(r.ownerId.toLowerCase()))) {
+        return true;
+      }
+      if (r.serialNumber && userSerials.has(r.serialNumber)) {
+        return true;
+      }
+      return false;
+    };
+
+    if (user.accountType === 'admin') {
+      if (ownerId && ownerId !== user.uid) {
+        return reminders.filter(isMatch);
+      }
+      return reminders;
+    }
+    return reminders.filter(isMatch);
   },
 
   saveReminderSchedule: (reminderId: string, fields: Partial<ReminderSchedule>): ReminderSchedule => {
@@ -2171,6 +2654,7 @@ export const mockDb = {
 
     let updatedReminder: ReminderSchedule;
     if (index === -1) {
+      // Create new reminder schedule
       const newReminder: ReminderSchedule = {
         reminderId: reminderId || 'rem-' + generateId(),
         ownerId: fields.ownerId || '',

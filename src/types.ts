@@ -241,3 +241,4 @@ export interface ActiveAlarmData {
   tone: string;
   time: string;
 }
+

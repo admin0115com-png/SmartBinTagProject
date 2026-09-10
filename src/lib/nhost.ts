@@ -1,10 +1,5 @@
 import { createClient } from '@nhost/nhost-js';
 
-// Production Nhost configuration for SmartBinTag Project
-// Connected to live Hasura instance (sjpksyugwmepoxjjvzyq.hasura.eu-central-1.nhost.run)
-export const NHOST_SUBDOMAIN = import.meta.env.VITE_NHOST_SUBDOMAIN || 'sjpksyugwmepoxjjvzyq';
-export const NHOST_REGION = import.meta.env.VITE_NHOST_REGION || 'eu-central-1';
-
 export function isValidUuid(str?: string | null): boolean {
   if (!str) return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
@@ -39,286 +34,205 @@ export interface CustomAuth {
     email: string;
     password: string;
   }): Promise<{ session: any; error: any }>;
-  [key: string]: any;
 }
 
 /**
- * Initialize the Nhost client using createClient from @nhost/nhost-js v4.
+ * Initialize the Nhost client with the provided project details using the v4 createClient factory.
  * Subdomain: sjpksyugwmepoxjjvzyq
  * Region: eu-central-1
  */
-let baseNhost: any;
+const baseNhost = createClient({
+  subdomain: 'sjpksyugwmepoxjjvzyq',
+  region: 'eu-central-1',
+});
 
-try {
-  baseNhost = createClient({
-    subdomain: NHOST_SUBDOMAIN,
-    region: NHOST_REGION,
-  });
-  console.log('✅ Nhost connected successfully to', NHOST_SUBDOMAIN);
-} catch (error) {
-  console.error('❌ Nhost connection failed:', error);
-  baseNhost = { auth: {}, storage: {}, graphql: {}, functions: {} } as any;
-}
+// Implement the custom popup/redirect signInWithProvider method on the auth instance
+(baseNhost.auth as any).signInWithProvider = async (
+  params: { provider: string; options?: { redirectTo?: string } },
+  options?: { popup?: boolean }
+) => {
+  const provider = params.provider;
+  const redirectTo = params.options?.redirectTo || window.location.origin;
 
-export { baseNhost };
+  // Generate the OAuth Provider URL using Nhost standard client
+  const providerUrl = baseNhost.auth.signInProviderURL(provider as any, { redirectTo });
 
-// Implement custom popup/redirect signInWithProvider method on the auth instance
-if (baseNhost && baseNhost.auth) {
-  (baseNhost.auth as any).signInWithProvider = async (
-    params: { provider: string; options?: { redirectTo?: string } },
-    options?: { popup?: boolean }
-  ) => {
-    const provider = params.provider;
-    const redirectTo = params.options?.redirectTo || window.location.origin;
+  if (options?.popup) {
+    // Open a popup window centered on the screen
+    const width = 600;
+    const height = 700;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
 
-    const providerUrl = baseNhost.auth.signInProviderURL 
-      ? baseNhost.auth.signInProviderURL(provider as any, { redirectTo })
-      : `https://${NHOST_SUBDOMAIN}.auth.${NHOST_REGION}.nhost.run/v1/signin/provider/${provider}?redirectTo=${encodeURIComponent(redirectTo)}`;
+    const popupWindow = window.open(
+      providerUrl,
+      'nhost-oauth-popup',
+      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+    );
 
-    if (options?.popup) {
-      const width = 600;
-      const height = 700;
-      const left = window.screen.width / 2 - width / 2;
-      const top = window.screen.height / 2 - height / 2;
+    if (!popupWindow) {
+      return {
+        session: null,
+        error: { message: "Failed to open popup. Please allow popups for this site." }
+      };
+    }
 
-      const popupWindow = window.open(
-        providerUrl,
-        'nhost-oauth-popup',
-        `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
-      );
-
-      if (!popupWindow) {
-        return {
-          session: null,
-          error: { message: "Failed to open popup. Please allow popups for this site." }
-        };
-      }
-
-      return new Promise((resolve) => {
-        const checkInterval = setInterval(() => {
-          try {
-            const session = baseNhost.sessionStorage?.get?.() || baseNhost.auth?.getSession?.();
-            if (session) {
-              clearInterval(checkInterval);
-              try { popupWindow.close(); } catch (err) {}
-              resolve({ session, error: null });
-              return;
+    // Return a promise that resolves when login succeeds or the popup is closed
+    return new Promise((resolve) => {
+      const checkInterval = setInterval(() => {
+        try {
+          // 1. Check if we now have an active Nhost session in the parent window
+          const session = baseNhost.sessionStorage.get();
+          if (session) {
+            clearInterval(checkInterval);
+            try {
+              popupWindow.close();
+            } catch (err) {
+              // Ignore potential window close errors
             }
-
-            if (popupWindow.closed) {
-              clearInterval(checkInterval);
-              const finalSession = baseNhost.sessionStorage?.get?.() || baseNhost.auth?.getSession?.();
-              if (finalSession) {
-                resolve({ session: finalSession, error: null });
-              } else {
-                resolve({ session: null, error: { message: "Sign-in popup closed by user before completing." } });
-              }
-              return;
-            }
-
-            const currentUrl = popupWindow.location.href;
-            if (currentUrl.startsWith(window.location.origin)) {
-              clearInterval(checkInterval);
-              setTimeout(() => {
-                try { popupWindow.close(); } catch (err) {}
-                const finalSession = baseNhost.sessionStorage?.get?.() || baseNhost.auth?.getSession?.();
-                resolve({ session: finalSession, error: null });
-              }, 1200);
-            }
-          } catch (e) {
-            // OAuth redirect cross-origin checks
+            resolve({ session, error: null });
+            return;
           }
-        }, 500);
-      });
-    } else {
-      window.location.href = providerUrl;
-      return { session: null, error: null };
-    }
-  };
 
-  // Implement custom credentials-based signUp method
-  (baseNhost.auth as any).signUp = async (params: {
-    email: string;
-    password: string;
-    options?: { displayName?: string };
-  }) => {
-    try {
-      const fn = (baseNhost.auth as any).signUpEmailPassword || (baseNhost.auth as any).signUp;
-      const response = await fn.call(baseNhost.auth, {
-        email: params.email,
-        password: params.password,
-        options: params.options,
-      });
-      return {
-        session: response?.session || response?.body?.session || null,
-        error: response?.error || null,
-      };
-    } catch (error: any) {
-      return {
-        session: null,
-        error: { message: error?.message || 'Credentials sign-up failed.' },
-      };
-    }
-  };
+          // 2. Check if the popup window has been closed by the user
+          if (popupWindow.closed) {
+            clearInterval(checkInterval);
+            const finalSession = baseNhost.sessionStorage.get();
+            if (finalSession) {
+              resolve({ session: finalSession, error: null });
+            } else {
+              resolve({ session: null, error: { message: "Sign-in popup closed by user before completing." } });
+            }
+            return;
+          }
 
-  // Implement custom credentials-based signIn method
-  (baseNhost.auth as any).signIn = async (params: {
-    email: string;
-    password: string;
-  }) => {
-    try {
-      const fn = (baseNhost.auth as any).signInEmailPassword || (baseNhost.auth as any).signIn;
-      const response = await fn.call(baseNhost.auth, {
-        email: params.email,
-        password: params.password,
-      });
-      return {
-        session: response?.session || response?.body?.session || null,
-        error: response?.error || null,
-      };
-    } catch (error: any) {
-      return {
-        session: null,
-        error: { message: error?.message || 'Credentials sign-in failed.' },
-      };
-    }
-  };
-}
+          // 3. Check if popup URL redirected back to our app's origin
+          const currentUrl = popupWindow.location.href;
+          if (currentUrl.startsWith(window.location.origin)) {
+            // Once on our domain, let the popup's instance handle token exchange briefly, then resolve
+            clearInterval(checkInterval);
+            setTimeout(() => {
+              try {
+                popupWindow.close();
+              } catch (err) {
+                // Ignore close errors
+              }
+              const finalSession = baseNhost.sessionStorage.get();
+              resolve({ session: finalSession, error: null });
+            }, 1200);
+          }
+        } catch (e) {
+          // Cross-origin errors are expected while the popup is on the Google OAuth domain — safe to ignore
+        }
+      }, 500);
+    });
+  } else {
+    // Standard direct page redirect flow
+    window.location.href = providerUrl;
+    return { session: null, error: null };
+  }
+};
 
-// Export the nhost client cast with custom typed auth interface
-export const nhost = baseNhost as any;
+// Implement custom credentials-based signUp method
+(baseNhost.auth as any).signUp = async (params: {
+  email: string;
+  password: string;
+  options?: { displayName?: string };
+}) => {
+  try {
+    const response = await baseNhost.auth.signUpEmailPassword({
+      email: params.email,
+      password: params.password,
+      options: params.options,
+    }) as any;
+    return {
+      session: response.session || response.body?.session || null,
+      error: response.error,
+    };
+  } catch (error: any) {
+    return {
+      session: null,
+      error: { message: error?.message || 'Credentials sign-up failed.' },
+    };
+  }
+};
 
-export interface NhostTagRecord {
-  serial_number: string;
-  status: string;
-  batch_number: string;
-  assigned_to?: string;
-  bin_id?: string;
-  house_number?: string;
-  street?: string;
-  postcode?: string;
-  county?: string;
-  bin_colour?: string;
-  town_city?: string;
-  alarm_tone?: string;
-  notes?: string;
-  created_at?: string;
-  assigned_at?: string;
-}
+// Implement custom credentials-based signIn method
+(baseNhost.auth as any).signIn = async (params: {
+  email: string;
+  password: string;
+}) => {
+  try {
+    const response = await baseNhost.auth.signInEmailPassword({
+      email: params.email,
+      password: params.password,
+    }) as any;
+    return {
+      session: response.session || response.body?.session || null,
+      error: response.error,
+    };
+  } catch (error: any) {
+    return {
+      session: null,
+      error: { message: error?.message || 'Credentials sign-in failed.' },
+    };
+  }
+};
 
-export interface NhostCollectionAlertRecord {
+// Export the nhost client cast with our custom typed auth interface
+export const nhost = baseNhost as Omit<typeof baseNhost, 'auth'> & {
+  auth: typeof baseNhost.auth & CustomAuth;
+};
+
+// --- EXAMPLES OF HOW TO USE NHOST IN YOUR APPLICATION ---
+
+/**
+ * 1. DATABASE EXAMPLES (via GraphQL/Hasura)
+ * 
+ * To query or mutate data, use `nhost.graphql.request`.
+ * Responses are structured inside `.body.data`. Errors throw standard FetchError or can be checked.
+ */
+
+interface BinData {
   id: string;
-  user_id: string;
-  bin_id: string;
   serial_number: string;
   bin_type: string;
-  bin_colour?: string;
-  alert_type: string;
-  scheduled_at?: string;
-  scheduled_time?: string;
-  scheduled_date?: string;
-  repeat_interval?: string;
-  timezone?: string;
-  alarm_sound?: string;
-  alarm_tone?: string;
-  notes?: string;
-  enabled: boolean;
-  status?: string;
-  push_enabled?: boolean;
-  email_enabled?: boolean;
-  in_app_enabled?: boolean;
-}
-
-export interface BinData {
-  id?: string;
-  serial_number: string;
+  house_number: string;
+  street: string;
   status: string;
-  batch_number?: string;
-  assigned_to?: string;
-  bin_id?: string;
-  bin_colour?: string;
-  house_number?: string;
-  street?: string;
-  postcode?: string;
-  town_city?: string;
-  alarm_tone?: string;
-  notes?: string;
 }
 
-/**
- * Helper to test if Nhost backend is reachable
- */
-export async function checkNhostConnection(): Promise<boolean> {
-  try {
-    const res = await fetch(`https://${NHOST_SUBDOMAIN}.graphql.${NHOST_REGION}.nhost.run/v1`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: '{ __typename }' })
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Generic helper for executing GraphQL queries and mutations on Nhost
- */
-export async function nhostGraphQLRequest<T = any>(query: string, variables: Record<string, any> = {}): Promise<T> {
-  const endpoint = `https://${NHOST_SUBDOMAIN}.graphql.${NHOST_REGION}.nhost.run/v1`;
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ query, variables })
-  });
-
-  const json = await res.json();
-  if (json.errors && json.errors.length > 0) {
-    throw new Error(json.errors[0].message || 'Nhost GraphQL query failed');
-  }
-  return json.data as T;
-}
-
+// Example Query: Get all bins registered to the active user
 export async function getMyBinsQuery(): Promise<BinData[]> {
   const GET_BINS_QUERY = `
     query GetMyBins {
-      tags(order_by: { created_at: desc }) {
+      tags {
+        id
         serial_number
         status
-        batch_number
-        assigned_to
-        bin_id
-        bin_colour
-        house_number
-        street
-        postcode
-        town_city
-        alarm_tone
-        notes
+        registered_by
       }
     }
   `;
   
   try {
-    const response = await nhost.graphql.request({
+    const response = await nhost.graphql.request<{ tags: BinData[] }>({
       query: GET_BINS_QUERY
     });
     
-    if (response?.body?.errors || response?.errors) {
-      const err = response?.body?.errors?.[0] || response?.errors?.[0];
-      console.error('GraphQL execution errors:', err);
-      throw new Error(err?.message || 'GraphQL error occurred');
+    if (response.body.errors) {
+      console.error('GraphQL execution errors:', response.body.errors);
+      throw new Error(response.body.errors[0]?.message || 'GraphQL error occurred');
     }
     
-    return response?.body?.data?.tags || response?.data?.tags || [];
+    return response.body.data?.tags || [];
   } catch (error) {
     console.error('Error fetching bins from Nhost:', error);
     throw error;
   }
 }
 
+// Example Mutation: Register a new smart bin tag
 export async function registerBinMutation(variables: {
   serialNumber: string;
   binType: string;
@@ -344,62 +258,83 @@ export async function registerBinMutation(variables: {
       variables,
     });
 
-    if (response?.body?.errors || response?.errors) {
-      const err = response?.body?.errors?.[0] || response?.errors?.[0];
-      console.error('GraphQL execution errors:', err);
-      throw new Error(err?.message || 'GraphQL mutation error occurred');
+    if (response.body.errors) {
+      console.error('GraphQL execution errors:', response.body.errors);
+      throw new Error(response.body.errors[0]?.message || 'GraphQL mutation error occurred');
     }
 
-    return response?.body?.data || response?.data;
+    return response.body.data;
   } catch (error) {
     console.error('Error registering bin in Nhost:', error);
     throw error;
   }
 }
 
+/**
+ * 2. AUTHENTICATION EXAMPLES
+ * 
+ * In v4, use explicit credentials-based methods:
+ * - signUpEmailPassword
+ * - signInEmailPassword
+ * - signOut (requires an options object, e.g., `{}`)
+ */
+
+// Sign up a new user with email and password
 export async function signUpUser(email: string, password: string) {
   try {
-    const response = await (nhost.auth as any).signUpEmailPassword({
+    const response = await nhost.auth.signUpEmailPassword({
       email,
       password,
     });
-    return response?.body || response;
+    // Session payload is returned in response.body
+    return response.body;
   } catch (error) {
     console.error('Nhost Sign up failed:', error);
     throw error;
   }
 }
 
+// Sign in an existing user
 export async function signInUser(email: string, password: string) {
   try {
-    const response = await (nhost.auth as any).signInEmailPassword({
+    const response = await nhost.auth.signInEmailPassword({
       email,
       password,
     });
-    return response?.body || response;
+    // Session payload is returned in response.body
+    return response.body;
   } catch (error) {
     console.error('Nhost Sign in failed:', error);
     throw error;
   }
 }
 
+// Sign out the current user session
 export async function signOutUser() {
   try {
-    const response = await (nhost.auth as any).signOut({});
-    return response?.body || response;
+    // signOut expects an options body, we pass an empty object
+    const response = await nhost.auth.signOut({});
+    return response.body;
   } catch (error) {
     console.error('Nhost Sign out failed:', error);
     throw error;
   }
 }
 
+/**
+ * 3. CUSTOM SERVERLESS FUNCTIONS EXAMPLES
+ * 
+ * In v4, invoke custom backend endpoints using standard POST/GET calls with `nhost.functions.post`.
+ */
+
+// Call a custom webhook or background function (e.g., to trigger a collection notification)
 export async function triggerCollectionReminder(binId: string, binType: string) {
   try {
     const response = await nhost.functions.post('/send-collection-reminder', {
       binId,
       binType,
     });
-    return response?.body || response;
+    return response.body;
   } catch (error) {
     console.error('Failed to trigger custom function on Nhost:', error);
     throw error;

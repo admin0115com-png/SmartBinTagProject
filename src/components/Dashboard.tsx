@@ -5,25 +5,30 @@ import {
   PlusCircle, Trash, Trash2, Bell, Calendar, Settings, ArrowRight, Sparkles, 
   MessageSquare, ShieldCheck, Activity, Terminal, Smartphone, 
   CheckCircle, Clock, RefreshCw, FileText, Send, SendHorizontal, AlertTriangle, Eye, EyeOff,
-  Volume2, X, ChevronDown, User as UserIcon, Home, Info
+  Volume2, X, ChevronDown, User as UserIcon, Home, Info, Edit, Check, Tag, MapPin
 } from 'lucide-react';
+import type { BinTag } from '../types';
 
 interface DashboardProps {
   currentUser: User;
   bins: Bin[];
+  tags?: BinTag[];
   notifications: NotificationItem[];
   reports: BinReport[];
   setView: (view: string, params?: Record<string, any>) => void;
   onOpenNotifications: () => void;
+  onTriggerAlarm?: (bin: Bin, alertType?: 'before' | 'day') => void;
 }
 
 export default function Dashboard({
   currentUser,
   bins,
+  tags = [],
   notifications,
   reports,
   setView,
-  onOpenNotifications
+  onOpenNotifications,
+  onTriggerAlarm
 }: DashboardProps) {
   // Real-time synchronization state variables
   const [ticketSubject, setTicketSubject] = useState('');
@@ -31,6 +36,34 @@ export default function Dashboard({
   const [ticketPriority, setTicketPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
   const [ticketSuccess, setTicketSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<'reports' | 'messages' | 'tickets' | 'logs' | 'sessions'>('reports');
+
+  // Message edit state
+  const [editingMessage, setEditingMessage] = useState<PrivateMessage | null>(null);
+  const [editMessageText, setEditMessageText] = useState('');
+  const [editMessageStatus, setEditMessageStatus] = useState<'Unread' | 'Read'>('Unread');
+
+  const handleOpenEditMessageModal = (msg: PrivateMessage) => {
+    setEditingMessage(msg);
+    setEditMessageText(msg.message);
+    setEditMessageStatus(msg.status);
+  };
+
+  const handleSaveEditMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMessage) return;
+    mockDb.updateMessage(editingMessage.messageId, {
+      message: editMessageText,
+      status: editMessageStatus
+    });
+    setEditingMessage(null);
+    pullRealtimeDatabase();
+  };
+
+  const handleToggleMessageRead = (msg: PrivateMessage) => {
+    const nextStatus = msg.status === 'Read' ? 'Unread' : 'Read';
+    mockDb.updateMessage(msg.messageId, { status: nextStatus });
+    pullRealtimeDatabase();
+  };
 
   // Filter dropdown state variables for the 7-Tier Panels
   const [reportsFilter, setReportsFilter] = useState<'ALL' | 'FOUND' | 'DAMAGE'>('ALL');
@@ -535,6 +568,27 @@ export default function Dashboard({
                         <Volume2 className="h-3 w-3 text-[#45D153]" />
                         Tone: <span className="font-black text-emerald-300 font-mono">{tone}</span>
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playSyntheticAlert(tone);
+                          const matchingBin = bins.find(b => b.serialNumber === rem.serialNumber);
+                          if (onTriggerAlarm && matchingBin) {
+                            onTriggerAlarm(matchingBin, 'day');
+                          } else {
+                            setActiveDashboardAlarm({
+                              serialNumber: rem.serialNumber,
+                              label: `${rem.collectionDay} Collection Alert`,
+                              tone: tone,
+                              time: rem.reminderTwoTime || '07:00'
+                            });
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-[#45D153] hover:bg-emerald-400 text-[#04352b] font-black uppercase tracking-wider rounded-lg text-[10px] transition-all flex items-center gap-1 cursor-pointer shadow-sm"
+                      >
+                        <Volume2 className="h-3 w-3" />
+                        <span>Activate Alert</span>
+                      </button>
                     </div>
                   </div>
                 );
@@ -658,6 +712,165 @@ export default function Dashboard({
             <span>Track Tickets</span><ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
+      </div>
+
+      {/* Registered Smart Bin Tags & Set Locations Section */}
+      <div className="bg-[#032f26] border border-[#0c624f] rounded-[24px] p-6 text-white space-y-5 shadow-2xl">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[#0c624f] pb-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-[#45D153]/15 border border-[#45D153]/30 rounded-xl flex items-center justify-center text-[#45D153]">
+              <Tag className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-white uppercase tracking-wider font-mono">My Smart Bin Tags & Set Locations</h2>
+              <p className="text-xs text-emerald-200/70">Physical tag identifiers and bound municipal collection addresses</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 bg-[#02241d] border border-[#0c624f] text-[#45D153] text-xs font-mono font-bold rounded-lg">
+              {bins.length} Tag{bins.length === 1 ? '' : 's'} Active
+            </span>
+            <button
+              onClick={() => setView('register-bin')}
+              className="px-3 py-1.5 bg-[#45D153] text-[#04352b] hover:bg-emerald-400 font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow flex items-center gap-1.5 cursor-pointer"
+            >
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span>Register New Tag</span>
+            </button>
+          </div>
+        </div>
+
+        {bins.length === 0 ? (
+          <div className="py-10 text-center border border-dashed border-[#0c624f] rounded-2xl bg-[#02241d]/70 text-white flex flex-col items-center justify-center space-y-3">
+            <Tag className="h-8 w-8 text-[#45D153]/40" />
+            <p className="text-xs text-emerald-100/70 font-sans">No smart bin tags registered to this account yet.</p>
+            <button
+              onClick={() => setView('register-bin')}
+              className="px-4 py-2 bg-[#45D153] text-[#04352b] text-xs font-black uppercase tracking-wider rounded-xl hover:bg-emerald-400 transition-all cursor-pointer shadow-md"
+            >
+              Register Tag Now
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {bins.map((bin) => {
+              const binColorBg: Record<string, string> = {
+                Black: 'bg-slate-900 text-white',
+                Green: 'bg-emerald-600 text-white',
+                Blue: 'bg-blue-600 text-white',
+                Brown: 'bg-amber-800 text-white',
+                Purple: 'bg-purple-600 text-white',
+                Red: 'bg-rose-600 text-white',
+                Other: 'bg-orange-500 text-white'
+              };
+
+              return (
+                <div 
+                  key={`dash-bin-${bin.binId}`}
+                  className="bg-[#02241d] border border-[#0c624f] hover:border-[#45D153]/60 rounded-2xl p-4.5 text-white flex flex-col justify-between space-y-4 shadow-lg transition-all"
+                >
+                  <div className="space-y-3">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-2 border-b border-[#0c624f]/60 pb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-black text-[#45D153] bg-[#011a14] px-2.5 py-1 rounded-md border border-[#0c624f]">
+                            {bin.serialNumber}
+                          </span>
+                          <span className={`px-2 py-0.5 text-[9px] font-black uppercase rounded ${binColorBg[bin.binType] || 'bg-emerald-700 text-white'}`}>
+                            {bin.binType} Bin
+                          </span>
+                        </div>
+                        {bin.propertyName && (
+                          <div className="text-xs font-bold text-emerald-200 mt-1 font-sans">
+                            {bin.propertyName}
+                          </div>
+                        )}
+                      </div>
+                      <span className="px-2 py-0.5 text-[8px] font-black uppercase tracking-wider rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
+                        {bin.status || 'Active'}
+                      </span>
+                    </div>
+
+                    {/* Set Location Display */}
+                    <div className="bg-[#011a14] border border-[#0c624f]/80 rounded-xl p-3 space-y-1">
+                      <div className="flex items-center gap-1.5 text-[9px] font-black uppercase font-mono text-[#45D153]">
+                        <MapPin className="h-3 w-3 text-[#45D153]" />
+                        <span>Set Location</span>
+                      </div>
+                      <p className="text-xs font-bold text-white leading-snug">
+                        {bin.houseNumber} {bin.street}
+                      </p>
+                      <p className="text-[11px] text-emerald-200/70 font-mono">
+                        {bin.town}{bin.county ? `, ${bin.county}` : ''}, {bin.postcode}
+                      </p>
+                      <div className="pt-1 flex items-center justify-between text-[9px] text-emerald-300/60 font-mono">
+                        <span>🇬🇧 United Kingdom</span>
+                        <span className="text-[#45D153] font-bold">● Location Set</span>
+                      </div>
+                    </div>
+
+                    {/* Collection Alarm Schedule */}
+                    <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                      <div className="bg-[#011a14]/60 p-2 rounded-lg border border-[#0c624f]/40">
+                        <span className="text-[8px] text-emerald-200/50 uppercase block font-sans">Next Collection</span>
+                        <span className="font-bold text-white text-[11px] truncate block">{bin.nextCollection || 'Scheduled'}</span>
+                      </div>
+                      <div className="bg-[#011a14]/60 p-2 rounded-lg border border-[#064e3f]/40">
+                        <span className="text-[8px] text-emerald-200/50 uppercase block font-sans">Alarm Tone</span>
+                        <span className="font-bold text-[#45D153] text-[11px] truncate block">{bin.alarmTone || 'Chime Classic'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="space-y-2 border-t border-[#0c624f]/60 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tone = bin.alarmTone || 'Chime Classic';
+                        playSyntheticAlert(tone);
+                        if (onTriggerAlarm) {
+                          onTriggerAlarm(bin, 'day');
+                        } else {
+                          setActiveDashboardAlarm({
+                            serialNumber: bin.serialNumber,
+                            label: `${bin.binType.toUpperCase()} Bin Collection Alert`,
+                            tone: tone,
+                            time: bin.collectionDayTime || '07:00 AM'
+                          });
+                        }
+                      }}
+                      className="w-full py-2 bg-[#45D153] hover:bg-emerald-400 text-[#04352b] font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Volume2 className="h-4 w-4" />
+                      <span>Activate Alert</span>
+                    </button>
+
+                    <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setView('my-bins')}
+                        className="py-1.5 px-2 bg-[#011a14] hover:bg-[#032c24] border border-[#0c624f] text-emerald-200 hover:text-white rounded-lg font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <Edit className="h-3 w-3" />
+                        <span>Edit Location</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setView('my-bins', { action: 'configure-alerts' })}
+                        className="py-1.5 px-2 bg-[#011a14] hover:bg-[#032c24] border border-[#0c624f] text-emerald-200 hover:text-white rounded-lg font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <Calendar className="h-3 w-3" />
+                        <span>Schedules</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Tabs Panels Section */}
@@ -931,7 +1144,26 @@ export default function Dashboard({
 
                           <div className="flex items-center justify-between gap-2 pt-1 text-[11px] font-mono">
                             <span className="text-emerald-100/60">Email: {msg.senderEmail || 'N/A'}</span>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleToggleMessageRead(msg)}
+                                className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase transition-colors cursor-pointer ${
+                                  msg.status === 'Read' 
+                                    ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700' 
+                                    : 'bg-amber-950/80 text-amber-300 border border-amber-700'
+                                }`}
+                                title="Click to toggle Read/Unread"
+                              >
+                                {msg.status}
+                              </button>
+                              <button
+                                onClick={() => handleOpenEditMessageModal(msg)}
+                                className="text-emerald-300 hover:text-emerald-100 font-bold flex items-center gap-1 cursor-pointer"
+                                title="Edit message"
+                              >
+                                <Edit className="h-3 w-3" />
+                                <span>Edit</span>
+                              </button>
                               {currentUser.accountType === 'admin' && (
                                 <button
                                   onClick={() => {
@@ -1199,6 +1431,71 @@ export default function Dashboard({
                 <span>Open Chat Feed for this Tag</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Message Modal */}
+      {editingMessage && (
+        <div className="fixed inset-0 z-[99999] bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-[#02241d] border border-[#0c624f] rounded-2xl p-6 w-full max-w-lg text-white space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-[#0c624f] pb-3">
+              <div className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-[#45D153]" />
+                <h3 className="text-sm font-black text-[#45D153] uppercase font-mono">Edit Message</h3>
+              </div>
+              <button onClick={() => setEditingMessage(null)} className="text-gray-400 hover:text-white p-1 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditMessage} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-[10px] font-mono text-emerald-300 uppercase mb-1">Sender</label>
+                <div className="bg-[#011a14] border border-[#0c624f] rounded-xl p-2.5 text-gray-300 font-mono">
+                  {editingMessage.senderName} ({editingMessage.senderEmail || 'N/A'}) • Tag: {editingMessage.serialNumber}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono text-emerald-300 uppercase mb-1">Message Content</label>
+                <textarea
+                  rows={4}
+                  value={editMessageText}
+                  onChange={e => setEditMessageText(e.target.value)}
+                  className="w-full bg-[#011a14] border border-[#0c624f] rounded-xl p-3 text-white outline-none focus:border-[#45D153] font-mono"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono text-emerald-300 uppercase mb-1">Status</label>
+                <select
+                  value={editMessageStatus}
+                  onChange={e => setEditMessageStatus(e.target.value as any)}
+                  className="w-full bg-[#011a14] border border-[#0c624f] rounded-xl p-2.5 text-white outline-none focus:border-[#45D153] font-mono cursor-pointer"
+                >
+                  <option value="Unread">Unread</option>
+                  <option value="Read">Read</option>
+                </select>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingMessage(null)}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#45D153] hover:bg-[#32b53f] text-[#02241d] font-mono font-bold uppercase rounded-lg text-xs cursor-pointer shadow-md flex items-center gap-1.5"
+                >
+                  <Check className="h-4 w-4" />
+                  Save & Update Nhost
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

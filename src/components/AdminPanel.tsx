@@ -179,6 +179,36 @@ export default function AdminPanel({
     setTimeout(() => setToast(null), 4500);
   };
 
+  // Edit Message Modal State
+  const [editingMessage, setEditingMessage] = useState<PrivateMessage | null>(null);
+  const [editMessageText, setEditMessageText] = useState('');
+  const [editMessageStatus, setEditMessageStatus] = useState<'Unread' | 'Read'>('Unread');
+
+  const handleOpenEditMessageModal = (msg: PrivateMessage) => {
+    setEditingMessage(msg);
+    setEditMessageText(msg.message);
+    setEditMessageStatus(msg.status);
+  };
+
+  const handleSaveEditMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMessage) return;
+    mockDb.updateMessage(editingMessage.messageId, {
+      message: editMessageText,
+      status: editMessageStatus
+    });
+    showToast('Message updated and synchronized to Nhost cloud backend!', 'success');
+    setEditingMessage(null);
+    onRefresh();
+  };
+
+  const handleToggleMessageRead = (msg: PrivateMessage) => {
+    const nextStatus = msg.status === 'Read' ? 'Unread' : 'Read';
+    mockDb.updateMessage(msg.messageId, { status: nextStatus });
+    showToast(`Message marked as ${nextStatus} and updated in Nhost.`, 'info');
+    onRefresh();
+  };
+
   // Custom Password Reset Display Modal State
   const [resetPassInfo, setResetPassInfo] = useState<{
     email: string;
@@ -652,51 +682,33 @@ export default function AdminPanel({
     const adminEmail = mockDb.getCurrentUser()?.email || 'admin0115@gmail.com';
 
     if (msgTarget === 'all') {
-      users.forEach(u => mockDb.addNotification(u.uid, 'System', broadcastTitle, broadcastBody, 'notifications'));
-      try {
-        await nhost.graphql.request({
-          query: `mutation SendBroadcast($msg: String!, $sender: String!) {
-            insert_messages(objects: [
-              { serial_number: "SBT-ADMIN-MSG", owner_id: "BROADCAST", sender_name: "SBT Municipal Admin", sender_email: $sender, message: $msg, status: "Unread" }
-            ]) { affected_rows }
-          }`,
-          variables: { msg: `${broadcastTitle}: ${broadcastBody}`, sender: adminEmail }
-        });
-      } catch (err) { console.warn('[Nhost Broadcast]', err); }
-      setMsgSuccess(`Broadcast sent to ${users.length} homeowners.`);
+      users.forEach(u => {
+        mockDb.addNotification(u.uid, 'System', broadcastTitle, broadcastBody, 'notifications');
+        mockDb.sendPrivateMessage(
+          'BROADCAST',
+          'SBT Municipal Admin',
+          adminEmail,
+          undefined,
+          `[Broadcast] ${broadcastTitle}: ${broadcastBody}`,
+          u.uid
+        );
+      });
+      setMsgSuccess(`Broadcast sent and synced to Nhost for ${users.length} homeowners.`);
+      showToast(`Broadcast dispatched to ${users.length} homeowners and saved to Nhost!`, 'success');
     } else {
       const target = users.find(u => u.uid === msgTarget);
       if (target) {
         mockDb.addNotification(target.uid, 'Private Message', `Direct: ${broadcastTitle}`, broadcastBody, 'notifications');
-        const msgs = mockDb.getMessages();
-        const newMsgId = `msg-adm-${Math.random().toString(36).slice(2,9)}`;
-        msgs.push({
-          messageId: newMsgId,
-          serialNumber: 'SBT-ADMIN-MSG',
-          ownerId: target.uid,
-          senderName: 'SBT Municipal Admin',
-          senderEmail: adminEmail,
-          message: `${broadcastTitle}: ${broadcastBody}`,
-          createdAt: new Date().toISOString(),
-          status: 'Unread'
-        });
-        localStorage.setItem('sbt_messages', JSON.stringify(msgs));
-
-        try {
-          await nhost.graphql.request({
-            query: `mutation SendDirectMessage($msg: String!, $sender: String!, $owner: String!) {
-              insert_messages_one(object: {
-                serial_number: "SBT-ADMIN-MSG",
-                owner_id: $owner,
-                sender_name: "SBT Municipal Admin",
-                sender_email: $sender,
-                message: $msg
-              }) { id }
-            }`,
-            variables: { msg: `${broadcastTitle}: ${broadcastBody}`, sender: adminEmail, owner: target.uid }
-          });
-        } catch (err) { console.warn('[Nhost Direct Message]', err); }
+        mockDb.sendPrivateMessage(
+          'DIRECT',
+          'SBT Municipal Admin',
+          adminEmail,
+          undefined,
+          `${broadcastTitle}: ${broadcastBody}`,
+          target.uid
+        );
         setMsgSuccess(`Private message sent to ${target.firstName} ${target.lastName} (${target.email}).`);
+        showToast(`Message sent to ${target.email} and saved to Nhost database!`, 'success');
       }
     }
     setBroadcastTitle(''); setBroadcastBody(''); setTimeout(()=>setMsgSuccess(null), 4000); onRefresh();
@@ -1304,12 +1316,31 @@ export default function AdminPanel({
                   <div key={m.messageId} className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs space-y-1.5 shadow-2xs">
                     <div className="flex justify-between items-center text-[10px] text-gray-500 font-mono">
                       <span className="font-bold text-gray-700">{m.senderName} ({m.senderEmail || 'N/A'})</span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <span>{new Date(m.createdAt).toLocaleString()}</span>
+                        <button
+                          onClick={() => handleToggleMessageRead(m)}
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase transition-colors cursor-pointer ${
+                            m.status === 'Read' 
+                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
+                              : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                          }`}
+                          title="Click to toggle Read/Unread status"
+                        >
+                          {m.status}
+                        </button>
+                        <button
+                          onClick={() => handleOpenEditMessageModal(m)}
+                          className="p-1 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100 rounded transition-colors cursor-pointer"
+                          title="Edit Message"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </button>
                         <button
                           onClick={() => {
                             if (window.confirm('Delete this message from chat feed & Nhost backend?')) {
                               mockDb.deleteMessage(m.messageId);
+                              showToast('Message deleted from local and Nhost database.', 'info');
                               onRefresh();
                             }
                           }}
@@ -1857,6 +1888,72 @@ export default function AdminPanel({
                 Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Edit Message Modal ─── */}
+      {editingMessage && (
+        <div className="fixed inset-0 z-[99999] bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-[#02241d] border border-[#064e3f] rounded-2xl p-6 w-full max-w-lg text-white space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-[#064e3f] pb-3">
+              <div className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-[#45D153]" />
+                <h3 className="text-sm font-black text-[#45D153] uppercase font-mono">Edit Message & Update Nhost</h3>
+              </div>
+              <button onClick={() => setEditingMessage(null)} className="text-gray-400 hover:text-white p-1 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditMessage} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-[10px] font-mono text-emerald-400 uppercase mb-1">Sender</label>
+                <div className="bg-[#011a14] border border-[#064e3f] rounded-xl p-2.5 text-gray-300 font-mono">
+                  {editingMessage.senderName} ({editingMessage.senderEmail || 'N/A'}) • Tag: {editingMessage.serialNumber}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono text-emerald-400 uppercase mb-1">Message Content</label>
+                <textarea
+                  rows={4}
+                  value={editMessageText}
+                  onChange={e => setEditMessageText(e.target.value)}
+                  className="w-full bg-[#011a14] border border-[#064e3f] rounded-xl p-3 text-white outline-none focus:border-[#45D153] font-mono"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono text-emerald-400 uppercase mb-1">Status</label>
+                <select
+                  value={editMessageStatus}
+                  onChange={e => setEditMessageStatus(e.target.value as any)}
+                  className="w-full bg-[#011a14] border border-[#064e3f] rounded-xl p-2.5 text-white outline-none focus:border-[#45D153] font-mono cursor-pointer"
+                >
+                  <option value="Unread">Unread</option>
+                  <option value="Read">Read</option>
+                </select>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingMessage(null)}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#45D153] hover:bg-[#5ce06a] text-[#04352b] font-black uppercase rounded-lg text-xs cursor-pointer shadow-md flex items-center gap-1.5"
+                >
+                  <Check className="h-4 w-4" />
+                  Save & Update Nhost
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

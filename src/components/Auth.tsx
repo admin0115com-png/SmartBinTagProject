@@ -79,7 +79,14 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
         const fName = nameParts[0] || (isAdmin ? 'Admin' : 'User');
         const lName = nameParts.slice(1).join(' ') || '';
 
-        const localRes = mockDb.loginExternal(session.user.email || lowerEmail, fName, lName);
+        const avatar = (session.user as any)?.avatarUrl || 
+                       (session.user as any)?.metadata?.avatarUrl || 
+                       (session.user as any)?.metadata?.profilePhoto || 
+                       localStorage.getItem(`sbt_avatar_${lowerEmail}`) ||
+                       localStorage.getItem('sbt_last_selected_avatar') ||
+                       '';
+
+        const localRes = mockDb.loginExternal(session.user.email || lowerEmail, fName, lName, avatar);
         
         if (isAdmin) {
           alert('👋 Welcome Admin!');
@@ -125,8 +132,9 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
       const nameParts = lowerEmail.split('@')[0].split(/[\._-]/);
       const fName = nameParts[0] ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) : 'User';
       const lName = nameParts[1] ? nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1) : '';
+      const fallbackAv = localStorage.getItem(`sbt_avatar_${lowerEmail}`) || localStorage.getItem('sbt_last_selected_avatar') || '';
       
-      const extResult = mockDb.loginExternal(lowerEmail, fName, lName);
+      const extResult = mockDb.loginExternal(lowerEmail, fName, lName, fallbackAv);
       if (extResult.success && extResult.user) {
         if (extResult.user.accountType === 'admin') {
           alert('👋 Welcome Admin!');
@@ -145,7 +153,8 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
       const fName = nameParts[0] ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) : 'User';
       const lName = nameParts[1] ? nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1) : '';
       
-      const extResult = mockDb.loginExternal(lowerEmail, fName, lName);
+      const fallbackAv = localStorage.getItem(`sbt_avatar_${lowerEmail}`) || localStorage.getItem('sbt_last_selected_avatar') || '';
+      const extResult = mockDb.loginExternal(lowerEmail, fName, lName, fallbackAv);
       if (extResult.success && extResult.user) {
         alert('👋 Welcome!');
         onAuthSuccess(extResult.user);

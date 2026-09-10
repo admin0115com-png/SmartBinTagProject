@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Headphones, 
+  Headset, 
   Mail, 
   MessageSquare, 
   Send, 
@@ -247,6 +247,16 @@ export default function ContactSupportHub({
           attachmentData: attachment?.dataUrl,
           referenceCode: refCode
         }
+      );
+
+      // Also register as a synchronized private message in Nhost messages table
+      db.sendPrivateMessage(
+        serialNumber.trim() || 'SUPPORT',
+        customerName.trim(),
+        email.trim(),
+        phoneNumber.trim() || undefined,
+        `[Support Ticket ${refCode} | ${selectedTopic}] ${subject}: ${message}`,
+        'ADMIN'
       );
 
       // Create confirmation notification in mockDb

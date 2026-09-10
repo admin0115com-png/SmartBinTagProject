@@ -37,6 +37,13 @@ export default function Navigation({
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
+  // Compute active avatar with fallback to localStorage
+  const activeAvatar = currentUser?.profilePhoto || 
+    (currentUser ? localStorage.getItem(`sbt_avatar_${currentUser.uid}`) : null) ||
+    (currentUser?.email ? localStorage.getItem(`sbt_avatar_${currentUser.email.toLowerCase().trim()}`) : null) ||
+    localStorage.getItem('sbt_last_selected_avatar') ||
+    '';
+
   // Listen for native PWA beforeinstallprompt
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -259,16 +266,40 @@ export default function Navigation({
 
     if (lastTriggeredMin === triggerKey) return;
 
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const currentDayName = days[time.getDay()].toLowerCase();
+    const nextDayName = days[(time.getDay() + 1) % 7].toLowerCase();
+
     // 1. Check User Bins
     const userBins = mockDb.getBins(currentUser.uid);
     userBins.forEach(bin => {
+      const colDay = (bin.collectionDayDate || '').toLowerCase().trim();
+      const beforeDay = (bin.beforeCollectionDate || '').toLowerCase().trim();
+      const nextCol = (bin.nextCollection || '').toLowerCase();
+
+      // Evening before matches if beforeDate is today, or day before collection day, or mentions tomorrow
+      const isEveningBeforeDate = 
+        !bin.beforeCollectionDate || 
+        beforeDay === todayStr || 
+        beforeDay === currentDayName || 
+        colDay === nextDayName || 
+        nextCol.includes('tomorrow') ||
+        nextCol.includes(nextDayName);
+
+      // Collection day matches if colDay is today, or mentions today
+      const isCollectionDayDate = 
+        !bin.collectionDayDate || 
+        colDay === todayStr || 
+        colDay === currentDayName || 
+        nextCol.includes('today') ||
+        nextCol.includes(currentDayName);
+
       // Check Evening Before Alarm
       if (bin.beforeCollectionEnabled && bin.beforeCollectionTime) {
         const timeMatch = bin.beforeCollectionTime.toUpperCase() === formatted12hTime.toUpperCase() ||
                           bin.beforeCollectionTime === currentHHMM;
-        const dateMatch = !bin.beforeCollectionDate || bin.beforeCollectionDate === todayStr;
 
-        if (timeMatch && dateMatch) {
+        if (timeMatch && isEveningBeforeDate) {
           setLastTriggeredMin(triggerKey);
           setIsSnoozed(false);
           const tone = bin.alarmTone || 'Chime Classic';
@@ -293,9 +324,8 @@ export default function Navigation({
       if (bin.collectionDayEnabled && bin.collectionDayTime) {
         const timeMatch = bin.collectionDayTime.toUpperCase() === formatted12hTime.toUpperCase() ||
                           bin.collectionDayTime === currentHHMM;
-        const dateMatch = !bin.collectionDayDate || bin.collectionDayDate === todayStr;
 
-        if (timeMatch && dateMatch) {
+        if (timeMatch && isCollectionDayDate) {
           setLastTriggeredMin(triggerKey);
           setIsSnoozed(false);
           const tone = bin.alarmTone || 'Chime Classic';
@@ -319,7 +349,6 @@ export default function Navigation({
 
     // 2. Check Reminders
     const reminders = mockDb.getReminders(currentUser.uid);
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const currentDayIndex = time.getDay();
 
     reminders.forEach(rem => {
@@ -327,18 +356,37 @@ export default function Navigation({
       const colDayIndex = days.indexOf(rem.collectionDay);
       if (colDayIndex === -1) return;
 
+      const normalizeTime = (t: string) => {
+        if (!t) return '';
+        const clean = t.trim().toUpperCase();
+        const match12 = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+        if (match12) {
+          let h = parseInt(match12[1], 10);
+          const m = match12[2];
+          const ap = match12[3];
+          if (ap === 'PM' && h < 12) h += 12;
+          if (ap === 'AM' && h === 12) h = 0;
+          return `${String(h).padStart(2, '0')}:${m}`;
+        }
+        const match24 = clean.match(/^(\d{1,2}):(\d{2})$/);
+        if (match24) {
+          return `${String(match24[1]).padStart(2, '0')}:${match24[2]}`;
+        }
+        return clean;
+      };
+
       const dayBeforeIndex = (colDayIndex - 1 + 7) % 7;
       let isMatch = false;
       let alertLabel = '';
 
-      const r1 = rem.reminderOneTime || '18:00';
-      if (currentDayIndex === dayBeforeIndex && (r1 === currentHHMM || r1 === formatted12hTime)) {
+      const r1Norm = normalizeTime(rem.reminderOneTime || '18:00');
+      if (currentDayIndex === dayBeforeIndex && r1Norm === currentHHMM) {
         isMatch = true;
         alertLabel = 'Evening Before Collection Alarm';
       }
 
-      const r2 = rem.reminderTwoTime || '07:00';
-      if (currentDayIndex === colDayIndex && (r2 === currentHHMM || r2 === formatted12hTime)) {
+      const r2Norm = normalizeTime(rem.reminderTwoTime || '07:00');
+      if (currentDayIndex === colDayIndex && r2Norm === currentHHMM) {
         isMatch = true;
         alertLabel = 'Collection Day Morning Alarm';
       }
@@ -429,9 +477,9 @@ export default function Navigation({
                     }`}
                     title="Home Screen"
                   >
-                    {currentUser.profilePhoto ? (
+                    {activeAvatar ? (
                       <img
-                        src={currentUser.profilePhoto}
+                        src={activeAvatar}
                         alt="Avatar"
                         className="w-4.5 h-4.5 rounded-full object-cover border border-[#45D153]"
                         referrerPolicy="no-referrer"
@@ -503,9 +551,9 @@ export default function Navigation({
                     }`}
                     title="Home Screen"
                   >
-                    {currentUser.profilePhoto ? (
+                    {activeAvatar ? (
                       <img
-                        src={currentUser.profilePhoto}
+                        src={activeAvatar}
                         alt="Avatar"
                         className="w-4.5 h-4.5 rounded-full object-cover border border-[#45D153]"
                         referrerPolicy="no-referrer"
@@ -593,9 +641,9 @@ export default function Navigation({
             >
               <div className="relative flex items-center justify-center">
                 <Home className="h-5 w-5" />
-                {currentUser.profilePhoto ? (
+                {activeAvatar ? (
                   <img
-                    src={currentUser.profilePhoto}
+                    src={activeAvatar}
                     alt="Avatar"
                     className="w-3 h-3 rounded-full object-cover border border-[#45D153] absolute -bottom-1 -right-1"
                     referrerPolicy="no-referrer"

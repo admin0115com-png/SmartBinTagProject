@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Bin, BinColor, BinReport, ReminderSchedule } from '../types';
+import type { Bin, BinColor, BinReport, ReminderSchedule, BinTag } from '../types';
 import { mockDb } from '../mockDb';
 import { nhost, toUuid } from '../lib/nhost';
 import {
-  Eye, Edit2, Trash2, Calendar, AlertCircle, Check, Plus, Save, X, ArrowLeft, Volume2, Home
+  Eye, Edit2, Trash2, Calendar, AlertCircle, Check, Plus, Save, X, ArrowLeft, Volume2, Home, MapPin, Tag
 } from 'lucide-react';
 import RegisterBin, { ALARM_SOUNDS } from './RegisterBin';
 
 interface MyBinsProps {
   ownerId: string;
   bins: Bin[];
+  tags?: BinTag[];
   reports: BinReport[];
   reminders: ReminderSchedule[];
   onRefresh: () => void;
   setView: (view: string, params?: Record<string, unknown>) => void;
   initialAction?: string;
+  onTriggerAlarm?: (bin: Bin, alertType?: 'before' | 'day') => void;
 }
 
 type NotificationMessage = { text: string; type: 'success' | 'error' } | null;
@@ -22,11 +24,13 @@ type NotificationMessage = { text: string; type: 'success' | 'error' } | null;
 export default function MyBins({
   ownerId,
   bins,
+  tags = [],
   reports,
   reminders,
   onRefresh,
   setView,
-  initialAction
+  initialAction,
+  onTriggerAlarm
 }: MyBinsProps) {
   // ==== State ====
   const [selectedBin, setSelectedBin] = useState<Bin | null>(null);
@@ -587,6 +591,157 @@ export default function MyBins({
         </button>
       </div>
 
+      {/* Primary Registered Tags & Set Locations Section */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-[#02241d] border border-[#064e3f] p-4 rounded-2xl text-white">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-[#45D153]/15 border border-[#45D153]/30 rounded-xl flex items-center justify-center text-[#45D153]">
+              <Tag className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black uppercase tracking-wider font-mono">Registered Tags & Set Locations</h2>
+              <p className="text-xs text-emerald-200/70">Connected physical stickers & verified municipal collection addresses</p>
+            </div>
+          </div>
+          <span className="px-3 py-1 bg-[#011a14] border border-[#064e3f] text-[#45D153] text-xs font-mono font-bold rounded-lg">
+            {bins.length} Tag{bins.length === 1 ? '' : 's'} Active
+          </span>
+        </div>
+
+        {bins.length === 0 ? (
+          <div className="py-12 px-4 text-center border-2 border-dashed border-[#0c624f] rounded-2xl bg-[#02241d]/70 text-white flex flex-col items-center justify-center space-y-4">
+            <div className="h-14 w-14 rounded-2xl bg-[#45D153]/10 border border-[#45D153]/30 flex items-center justify-center text-[#45D153]">
+              <Tag className="h-7 w-7" />
+            </div>
+            <div className="space-y-1 max-w-md">
+              <h3 className="text-base font-black uppercase tracking-wider">No Smart Bin Tags Registered</h3>
+              <p className="text-xs text-emerald-200/70 leading-relaxed">
+                You haven't bound any physical Smart Bin Tags to your account yet. Register your tag to set its collection location and activate alarm notifications.
+              </p>
+            </div>
+            <button
+              onClick={() => setView('register-bin', {})}
+              className="px-5 py-2.5 bg-[#45D153] hover:bg-emerald-400 text-[#04352b] font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Register Smart Tag Now</span>
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {bins.map((bin) => {
+              return (
+                <div 
+                  key={bin.binId}
+                  className="bg-[#02241d] border-2 border-[#064e3f] hover:border-[#45D153]/60 rounded-2xl p-5 text-white flex flex-col justify-between space-y-4 shadow-xl transition-all"
+                >
+                  <div className="space-y-3">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-2 border-b border-[#064e3f]/70 pb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-black text-[#45D153] bg-[#011a14] px-2.5 py-1 rounded-md border border-[#064e3f]">
+                            {bin.serialNumber}
+                          </span>
+                          <span className={`px-2 py-0.5 text-[9px] font-black uppercase rounded ${getBinBgColor(bin.binType)}`}>
+                            {bin.binType} Bin
+                          </span>
+                        </div>
+                        {bin.propertyName && (
+                          <div className="text-xs font-bold text-emerald-200 mt-1.5 font-sans">
+                            {bin.propertyName}
+                          </div>
+                        )}
+                      </div>
+                      <span className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-full border ${getStatusBadgeClass(bin.status)}`}>
+                        {bin.status}
+                      </span>
+                    </div>
+
+                    {/* Set Location Display */}
+                    <div className="bg-[#011a14] border border-[#064e3f] rounded-xl p-3 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-[10px] font-black uppercase font-mono text-[#45D153]">
+                        <MapPin className="h-3.5 w-3.5 text-[#45D153]" />
+                        <span>Set Location</span>
+                      </div>
+                      <p className="text-xs font-bold text-white leading-snug">
+                        {bin.houseNumber} {bin.street}
+                      </p>
+                      <p className="text-[11px] text-emerald-200/70 font-mono">
+                        {bin.town}{bin.county ? `, ${bin.county}` : ''}, {bin.postcode}
+                      </p>
+                      <div className="pt-1 flex items-center justify-between text-[9px] text-emerald-300/60 font-mono">
+                        <span>🇬🇧 United Kingdom</span>
+                        <span className="text-[#45D153] font-bold">● Location Verified</span>
+                      </div>
+                    </div>
+
+                    {/* Schedule info */}
+                    <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                      <div className="bg-[#011a14]/60 p-2 rounded-lg border border-[#064e3f]/40">
+                        <span className="text-[8px] text-emerald-200/50 uppercase block font-sans">Next Collection</span>
+                        <span className="font-bold text-white text-[11px] truncate block">{bin.nextCollection || 'Scheduled'}</span>
+                      </div>
+                      <div className="bg-[#011a14]/60 p-2 rounded-lg border border-[#064e3f]/40">
+                        <span className="text-[8px] text-emerald-200/50 uppercase block font-sans">Alarm Tone</span>
+                        <span className="font-bold text-[#45D153] text-[11px] truncate block">{bin.alarmTone || 'Chime Classic'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="space-y-2 border-t border-[#064e3f]/70 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playSyntheticAlert(bin.alarmTone || 'Chime Classic');
+                        if (onTriggerAlarm) {
+                          onTriggerAlarm(bin, 'day');
+                        }
+                      }}
+                      className="w-full py-2 bg-[#45D153] hover:bg-emerald-400 text-[#04352b] font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Volume2 className="h-4 w-4" />
+                      <span>Activate Alert</span>
+                    </button>
+
+                    <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBin(bin)}
+                        className="py-1.5 px-2 bg-[#011a14] hover:bg-[#032c24] border border-[#064e3f] text-emerald-200 hover:text-white rounded-lg font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        title="View Tag Details"
+                      >
+                        <Eye className="h-3 w-3" />
+                        <span>Details</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenEdit(bin, e)}
+                        className="py-1.5 px-2 bg-[#011a14] hover:bg-[#032c24] border border-[#064e3f] text-emerald-200 hover:text-white rounded-lg font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        title="Edit Set Location & Details"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                        <span>Location</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenReminders(bin, e)}
+                        className="py-1.5 px-2 bg-[#011a14] hover:bg-[#032c24] border border-[#064e3f] text-emerald-200 hover:text-white rounded-lg font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        title="Configure Reminders"
+                      >
+                        <Calendar className="h-3 w-3" />
+                        <span>Alarms</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Collection Alerts Engine Section */}
       <div className="mt-12 bg-[#02241d]/90 border-2 border-[#064e3f] rounded-2xl p-6 text-white space-y-6 shadow-2xl">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[#064e3f] pb-4">
@@ -695,16 +850,31 @@ export default function MyBins({
                     </div>
                   </div>
 
-                  <div className="pt-1 flex justify-between items-center">
+                  <div className="pt-1 flex justify-between items-center gap-2 flex-wrap">
                     <span className="text-[10px] text-emerald-200/60 font-mono">Tone: {bin.alarmTone || 'Chime Classic'}</span>
-                    <button
-                      type="button"
-                      onClick={() => playSyntheticAlert(bin.alarmTone || 'Chime Classic')}
-                      className="px-3 py-1 bg-[#032c24] hover:bg-[#064e3f] border border-[#45D153]/30 text-[#45D153] rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all"
-                    >
-                      <Volume2 className="h-3.5 w-3.5" />
-                      <span>Test Alarm Tone</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => playSyntheticAlert(bin.alarmTone || 'Chime Classic')}
+                        className="px-3 py-1 bg-[#032c24] hover:bg-[#064e3f] border border-[#45D153]/30 text-[#45D153] rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all"
+                      >
+                        <Volume2 className="h-3.5 w-3.5" />
+                        <span>Test Alarm Tone</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playSyntheticAlert(bin.alarmTone || 'Chime Classic');
+                          if (onTriggerAlarm) {
+                            onTriggerAlarm(bin, 'day');
+                          }
+                        }}
+                        className="px-3 py-1 bg-[#45D153] hover:bg-emerald-400 text-[#04352b] rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
+                      >
+                        <Volume2 className="h-3.5 w-3.5" />
+                        <span>Activate Alert</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

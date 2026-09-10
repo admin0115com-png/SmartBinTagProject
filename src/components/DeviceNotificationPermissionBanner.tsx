@@ -6,11 +6,14 @@ import {
   X, 
   Share2, 
   PlusSquare, 
-  Volume2
+  Volume2, 
+  VolumeX,
+  Play
 } from 'lucide-react';
 import { 
   requestPushNotificationPermission, 
   getNotificationPermissionState, 
+  sendNativeDeviceNotification,
   syncNotificationSettingsToNhost 
 } from '../lib/pushNotifications';
 

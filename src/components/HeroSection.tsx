@@ -74,6 +74,11 @@ export default function HeroSection({
       return;
     }
     try {
+      localStorage.setItem(`sbt_avatar_${currentUser.uid}`, url);
+      if (currentUser.email) {
+        localStorage.setItem(`sbt_avatar_${currentUser.email.toLowerCase().trim()}`, url);
+      }
+      localStorage.setItem('sbt_last_selected_avatar', url);
       mockDb.updateUser(currentUser.uid, { profilePhoto: url });
       onRefresh?.();
     } catch (err) {
@@ -473,7 +478,7 @@ export default function HeroSection({
         </div>
         <div className="border border-[#064e3f] rounded-[24px] overflow-hidden shadow-2xl bg-[#011a14] relative">
           <img
-            src="/images/bin_tag_garden_mockup_1783859098816.jpg"
+            src="/src/assets/images/bin_tag_garden_mockup_1783859098816.jpg"
             alt="Smart Bin Tag App and Wheelie Bin Mockup"
             className="w-full h-auto object-cover block"
             referrerPolicy="no-referrer"
@@ -522,7 +527,7 @@ export default function HeroSection({
         <div className="bg-[#011a14] border border-[#064e3f] rounded-[24px] p-4 sm:p-6 shadow-2xl space-y-6">
           <div className="rounded-2xl overflow-hidden border border-[#064e3f] shadow-lg max-w-4xl mx-auto">
             <img
-              src="/images/save_app_three_phones_hand_1785956916628.jpg"
+              src="/src/assets/images/save_app_three_phones_hand_1785956916628.jpg"
               alt="Save SmartBinTag App 3-Phone Guide with smartbintagapp.com, Bottom Share Button, and Green SBT App Icon"
               className="w-full h-auto object-cover block"
               referrerPolicy="no-referrer"
