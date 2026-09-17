@@ -416,15 +416,100 @@ async function startServer() {
     }
   });
 
+  // API Route: Delete Bin Endpoint
+  app.post("/api/db/delete-bin", (req, res) => {
+    try {
+      const { binId, serialNumber } = req.body || {};
+      const db = loadDatabase();
+      if (binId || serialNumber) {
+        db["sbt_bins"] = (db["sbt_bins"] || []).filter(
+          (b: any) => (binId ? b.binId !== binId : true) && (serialNumber ? b.serialNumber !== serialNumber : true)
+        );
+      }
+      if (serialNumber) {
+        db["sbt_tags"] = (db["sbt_tags"] || []).map((t: any) => {
+          if (t.serialNumber === serialNumber) {
+            return {
+              ...t,
+              status: "Available",
+              ownerId: null,
+              ownerEmail: null,
+              registeredDate: null,
+              propertyName: "",
+              houseNumber: "",
+              street: "",
+              town: "",
+              county: "",
+              postcode: "",
+              notes: "",
+              address: "",
+              bin_colour: undefined
+            };
+          }
+          return t;
+        });
+        db["sbt_reminders"] = (db["sbt_reminders"] || []).filter((r: any) => r.serialNumber !== serialNumber);
+      }
+      saveDatabase(db);
+      res.json({ success: true, data: db });
+    } catch (err: any) {
+      console.error("Delete bin error:", err);
+      res.status(500).json({ success: false, error: err?.message || "Delete failed" });
+    }
+  });
+
+  // API Route: Reset Tag Endpoint
+  app.post("/api/db/reset-tag", (req, res) => {
+    try {
+      const { serialNumber } = req.body || {};
+      const db = loadDatabase();
+      if (serialNumber) {
+        const norm = serialNumber.trim().toUpperCase();
+        db["sbt_bins"] = (db["sbt_bins"] || []).filter((b: any) => b.serialNumber !== norm);
+        db["sbt_tags"] = (db["sbt_tags"] || []).map((t: any) => {
+          if (t.serialNumber === norm) {
+            return {
+              ...t,
+              status: "Available",
+              ownerId: null,
+              ownerEmail: null,
+              registeredDate: null,
+              propertyName: "",
+              houseNumber: "",
+              street: "",
+              town: "",
+              county: "",
+              postcode: "",
+              notes: "",
+              address: "",
+              bin_colour: undefined
+            };
+          }
+          return t;
+        });
+        db["sbt_reminders"] = (db["sbt_reminders"] || []).filter((r: any) => r.serialNumber !== norm);
+      }
+      saveDatabase(db);
+      res.json({ success: true, data: db });
+    } catch (err: any) {
+      console.error("Reset tag error:", err);
+      res.status(500).json({ success: false, error: err?.message || "Reset tag failed" });
+    }
+  });
+
   // API Route: Targeted User Data Sync
   app.get("/api/db/user/:email", (req, res) => {
     const email = (req.params.email || "").toLowerCase().trim();
     const db = loadDatabase();
     const bins = (db["sbt_bins"] || []).filter(
-      (b: any) => (b.ownerEmail && b.ownerEmail.toLowerCase().trim() === email)
+      (b: any) => 
+        (b.ownerEmail && b.ownerEmail.toLowerCase().trim() === email) ||
+        (b.ownerId && b.ownerId.toLowerCase().trim() === email)
     );
     const users = (db["sbt_users"] || []).filter(
-      (u: any) => (u.email && u.email.toLowerCase().trim() === email)
+      (u: any) => 
+        (u.email && u.email.toLowerCase().trim() === email) ||
+        (u.uid && u.uid.toLowerCase().trim() === email)
     );
     res.json({
       success: true,

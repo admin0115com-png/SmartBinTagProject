@@ -673,109 +673,38 @@ export async function syncWithServer(): Promise<boolean> {
         'sbt_support_tickets'
       ];
 
-      const outgoingPush: Record<string, any> = {};
-
       for (const key of keysToSync) {
-        const localRaw = localStorage.getItem(key);
-        let localList: any[] = [];
-        try {
-          localList = localRaw ? JSON.parse(localRaw) : [];
-        } catch {
-          localList = [];
+        if (pendingSyncPayload[key]) {
+          continue;
         }
 
-        const serverList: any[] = Array.isArray(serverData[key]) ? serverData[key] : [];
+        const localRaw = localStorage.getItem(key);
+        const serverItems = serverData[key];
 
-        if (serverList.length === 0 && localList.length > 0) {
-          outgoingPush[key] = localList;
-        } else if (serverList.length > 0) {
-          if (key === 'sbt_bins') {
-            const merged = [...localList];
-            let changed = false;
-            serverList.forEach((sBin: any) => {
-              const idx = merged.findIndex(l => l.binId === sBin.binId || l.serialNumber === sBin.serialNumber);
-              if (idx >= 0) {
-                merged[idx] = { ...merged[idx], ...sBin };
-              } else {
-                merged.push(sBin);
-                changed = true;
-              }
-            });
-            if (merged.length > serverList.length) {
-              outgoingPush[key] = merged;
+        if (serverItems !== undefined) {
+          const serverJson = JSON.stringify(serverItems);
+          if (localRaw !== serverJson) {
+            let localList: any[] = [];
+            try {
+              localList = localRaw ? JSON.parse(localRaw) : [];
+            } catch {
+              localList = [];
             }
-            if (changed || merged.length !== localList.length) {
-              localStorage.setItem(key, JSON.stringify(merged));
-              hasChanges = true;
-            }
-          } else if (key === 'sbt_tags') {
-            const merged = [...localList];
-            let changed = false;
-            serverList.forEach((sTag: any) => {
-              const idx = merged.findIndex(l => l.serialNumber === sTag.serialNumber);
-              if (idx >= 0) {
-                if (sTag.status === 'Registered' && merged[idx].status !== 'Registered') {
-                  merged[idx] = sTag;
-                  changed = true;
-                }
-              } else {
-                merged.push(sTag);
-                changed = true;
-              }
-            });
-            if (merged.some(m => m.status === 'Registered')) {
-              outgoingPush[key] = merged;
-            }
-            if (changed) {
-              localStorage.setItem(key, JSON.stringify(merged));
-              hasChanges = true;
-            }
-          } else if (key === 'sbt_users') {
-            const merged = [...localList];
-            let changed = false;
-            serverList.forEach((sUser: any) => {
-              const sEmail = (sUser.email || '').toLowerCase().trim();
-              const idx = merged.findIndex(l => l.uid === sUser.uid || (sEmail && (l.email || '').toLowerCase().trim() === sEmail));
-              if (idx >= 0) {
-                merged[idx] = { ...merged[idx], ...sUser };
-              } else {
-                merged.push(sUser);
-                changed = true;
-              }
-            });
-            if (changed) {
-              localStorage.setItem(key, JSON.stringify(merged));
-              hasChanges = true;
-            }
-            outgoingPush[key] = merged;
-          } else {
-            const merged = [...localList];
-            let changed = false;
-            serverList.forEach((sItem: any) => {
-              if (sItem && sItem.id) {
-                const idx = merged.findIndex(l => l.id === sItem.id);
-                if (idx >= 0) {
-                  merged[idx] = { ...merged[idx], ...sItem };
-                } else {
-                  merged.push(sItem);
-                  changed = true;
-                }
-              }
-            });
-            if (changed) {
-              localStorage.setItem(key, JSON.stringify(merged));
+
+            // If server is empty but local has items, push local to server
+            if (Array.isArray(serverItems) && serverItems.length === 0 && Array.isArray(localList) && localList.length > 0) {
+              fetch('/api/db/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [key]: localList })
+              }).catch(() => {});
+            } else {
+              // Server cloud database is single source of truth: update local cache
+              localStorage.setItem(key, serverJson);
               hasChanges = true;
             }
           }
         }
-      }
-
-      if (Object.keys(outgoingPush).length > 0) {
-        fetch('/api/db/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(outgoingPush)
-        }).catch(() => {});
       }
 
       if (hasChanges) {
@@ -803,7 +732,7 @@ function queueSyncToServer(key: string, data: any) {
         body: JSON.stringify(payload)
       });
     } catch {}
-  }, 350);
+  }, 200);
 }
 
 // Enable cross-tab / cross-device synchronicity
@@ -817,7 +746,7 @@ if (typeof window !== 'undefined') {
   // Sync with server immediately
   setTimeout(() => {
     syncWithServer();
-  }, 100);
+  }, 50);
 
   // Sync when window refocuses
   window.addEventListener('focus', () => {
@@ -830,12 +759,12 @@ if (typeof window !== 'undefined') {
     }
   });
 
-  // Periodic background check every 20s
+  // Periodic background check every 6s for fast cross-device sync
   setInterval(() => {
     if (document.visibilityState === 'visible') {
       syncWithServer();
     }
-  }, 20000);
+  }, 6000);
 }
 
 const getLoggedInUser = (): User | null => {
@@ -2367,6 +2296,16 @@ export const mockDb = {
 
     // Remove bin
     setToStorage('sbt_bins', bins.filter(b => b.binId !== binId));
+
+    // Sync deletion to cloud database immediately
+    try {
+      fetch('/api/db/delete-bin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ binId, serialNumber: bin.serialNumber })
+      }).catch(() => {});
+    } catch {}
+
     return true;
   },
 
@@ -2401,6 +2340,15 @@ export const mockDb = {
     const reminders = getFromStorage<any[]>('sbt_reminders');
     const remainingReminders = reminders.filter(r => r.serialNumber !== normalized);
     setToStorage('sbt_reminders', remainingReminders);
+
+    // Sync tag reset to cloud database immediately
+    try {
+      fetch('/api/db/reset-tag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serialNumber: normalized })
+      }).catch(() => {});
+    } catch {}
 
     return true;
   },
