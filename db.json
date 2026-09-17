@@ -1,0 +1,219 @@
+{
+  "sbt_users": [
+    {
+      "uid": "usr-admin-primary",
+      "firstName": "Admin",
+      "lastName": "Primary",
+      "email": "admin0115.com@gmail.com",
+      "profilePhoto": "",
+      "phoneNumber": "+44 7700 900100",
+      "accountType": "admin",
+      "postcode": "LN5 8PE",
+      "createdAt": "2026-07-12T12:00:00Z",
+      "status": "Active",
+      "emailVerified": true,
+      "notificationPreferences": {
+        "pushEnabled": true,
+        "emailEnabled": true,
+        "remindersAlerts": true,
+        "foundBinAlerts": true,
+        "damageAlerts": true,
+        "messageAlerts": true
+      }
+    },
+    {
+      "uid": "usr-homeowner-primary",
+      "firstName": "Alex",
+      "lastName": "Taylor",
+      "email": "resident@gmail.com",
+      "profilePhoto": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250",
+      "phoneNumber": "+44 7700 900222",
+      "accountType": "user",
+      "postcode": "LN5 8PE",
+      "createdAt": "2026-07-15T10:00:00Z",
+      "status": "Active",
+      "emailVerified": true,
+      "notificationPreferences": {
+        "pushEnabled": true,
+        "emailEnabled": true,
+        "remindersAlerts": true,
+        "foundBinAlerts": true,
+        "damageAlerts": true,
+        "messageAlerts": true
+      }
+    }
+  ],
+  "sbt_bins": [
+    {
+      "binId": "bin-01",
+      "ownerId": "usr-admin-primary",
+      "ownerEmail": "admin0115.com@gmail.com",
+      "serialNumber": "SBT-00000014",
+      "binType": "Green",
+      "propertyName": "",
+      "houseNumber": "26",
+      "street": "Canwick Close",
+      "town": "Lincoln",
+      "county": "Lincolnshire",
+      "postcode": "LN5 8PE",
+      "country": "United Kingdom",
+      "notes": "Left side of the driveway.",
+      "registeredDate": "2026-05-15T12:00:00Z",
+      "lastUpdated": "2026-05-15T12:00:00Z",
+      "status": "Active",
+      "nextCollection": "Tomorrow, 07:00 AM",
+      "collectionDayDate": "Tuesday",
+      "collectionDayTime": "07:00 AM",
+      "collectionDayEnabled": true,
+      "beforeCollectionDate": "Monday",
+      "beforeCollectionTime": "06:00 PM",
+      "beforeCollectionEnabled": true,
+      "alarmTone": "Chime Classic",
+      "repeatIntervalWeeks": 1
+    }
+  ],
+  "sbt_tags": [
+    {
+      "serialNumber": "SBT-00000014",
+      "status": "Registered",
+      "ownerId": "usr-admin-primary",
+      "ownerEmail": "admin0115.com@gmail.com",
+      "bin_colour": "Green",
+      "property_name": "",
+      "address": "26 Canwick Close, Lincoln, LN5 8PE",
+      "notes": "Left side of the driveway.",
+      "registeredDate": "2026-05-15T12:00:00Z",
+      "manufacturedDate": "2026-01-10T08:00:00Z",
+      "nfcEnabled": true
+    },
+    {
+      "serialNumber": "SBT-00000001",
+      "status": "Available",
+      "ownerId": null,
+      "registeredDate": null,
+      "manufacturedDate": "2026-01-10T08:00:00Z",
+      "nfcEnabled": true
+    },
+    {
+      "serialNumber": "SBT-00000002",
+      "status": "Available",
+      "ownerId": null,
+      "registeredDate": null,
+      "manufacturedDate": "2026-01-10T08:00:00Z",
+      "nfcEnabled": true
+    },
+    {
+      "serialNumber": "SBT-00000003",
+      "status": "Available",
+      "ownerId": null,
+      "registeredDate": null,
+      "manufacturedDate": "2026-01-10T08:00:00Z",
+      "nfcEnabled": true
+    },
+    {
+      "serialNumber": "SBT-00000006",
+      "status": "Available",
+      "ownerId": null,
+      "registeredDate": null,
+      "manufacturedDate": "2026-01-10T08:00:00Z",
+      "nfcEnabled": true
+    },
+    {
+      "serialNumber": "SBT-00000008",
+      "status": "Available",
+      "ownerId": null,
+      "registeredDate": null,
+      "manufacturedDate": "2026-01-10T08:00:00Z",
+      "nfcEnabled": true
+    },
+    {
+      "serialNumber": "SBT-00000010",
+      "status": "Available",
+      "ownerId": null,
+      "registeredDate": null,
+      "manufacturedDate": "2026-01-10T08:00:00Z",
+      "nfcEnabled": true
+    }
+  ],
+  "sbt_reminders": [
+    {
+      "reminderId": "rem-01",
+      "ownerId": "usr-admin-primary",
+      "serialNumber": "SBT-00000014",
+      "collectionDay": "Tuesday",
+      "frequency": "Weekly",
+      "reminderOneTime": "18:00",
+      "reminderTwoTime": "07:00",
+      "enabled": true,
+      "nextReminder": "2026-07-21T18:00:00",
+      "alarmTone": "Chime Classic"
+    }
+  ],
+  "sbt_reports": [
+    {
+      "reportId": "rep-01",
+      "serialNumber": "SBT-00000014",
+      "binId": "bin-01",
+      "reportType": "Found",
+      "description": "Found at 26 Canwick Close.",
+      "location": "Near the driveway entrance",
+      "postcode": "LN5 8PE",
+      "houseNumber": "26",
+      "gpsCoordinates": "53.2200° N, 0.5300° W",
+      "finderName": "Sarah Higgins",
+      "finderEmail": "sarah.h@example.com",
+      "finderPhone": "07700 900122",
+      "message": "The bin was safely returned to 26 Canwick Close.",
+      "createdAt": "2026-07-16T10:00:00Z",
+      "status": "Unread"
+    }
+  ],
+  "sbt_messages": [
+    {
+      "messageId": "msg-01",
+      "serialNumber": "SBT-00000014",
+      "ownerId": "usr-admin-primary",
+      "senderName": "Robert Green",
+      "senderEmail": "robert@greenwood.com",
+      "senderPhone": "07700 900144",
+      "message": "Hello, your green bin is currently sitting directly in front of my driveway entry. Could you please pull it back a bit? Thanks!",
+      "createdAt": "2026-07-16T11:00:00Z",
+      "status": "Unread"
+    }
+  ],
+  "sbt_notifications": [
+    {
+      "notificationId": "not-01",
+      "ownerId": "usr-admin-primary",
+      "type": "Collection Reminder",
+      "title": "Green Bin Collection Tomorrow",
+      "body": "Your Green Bin (SBT-00000014) will be collected tomorrow. Please place it outside this evening.",
+      "createdAt": "2026-07-15T18:00:00Z",
+      "read": false,
+      "deleted": false,
+      "actionUrl": "my-bins"
+    },
+    {
+      "notificationId": "not-02",
+      "ownerId": "usr-admin-primary",
+      "type": "Private Message",
+      "title": "New Message from Robert Green",
+      "body": "A neighbor left a message: \"Hello, your green bin is sitting directly in front of my driveway...\"",
+      "createdAt": "2026-07-16T11:01:00Z",
+      "read": false,
+      "deleted": false,
+      "actionUrl": "notifications"
+    }
+  ],
+  "sbt_system_settings": {
+    "maintenanceMode": false,
+    "appVersion": "1.0.0",
+    "defaultReminders": {
+      "reminderOne": "18:00",
+      "reminderTwo": "07:00"
+    },
+    "supportEmail": "support@smartbintag.com",
+    "termsVersion": "1.0",
+    "privacyVersion": "1.0"
+  }
+}
