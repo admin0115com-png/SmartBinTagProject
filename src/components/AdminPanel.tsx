@@ -79,20 +79,48 @@ const getCoordinatesForPostcode = (postcode: string = ''): { lat: number; lng: n
 /** Resolve coordinates and label for a given tag */
 const getCoordsForTag = (tag: BinTag, bins: Bin[], users: User[]) => {
   const bin = bins.find(b => b.serialNumber === tag.serialNumber);
-  if (bin) return { ...getCoordinatesForPostcode(bin.postcode), postcode: bin.postcode, label: `${bin.houseNumber||''} ${bin.street||''}, ${bin.town||''}` };
+  const serialNum = parseInt(tag.serialNumber.replace(/\D/g, ''), 10) || 0;
+
+  if (bin && bin.postcode) {
+    const coords = getCoordinatesForPostcode(bin.postcode);
+    const houseNum = parseInt(bin.houseNumber || '0', 10) || 0;
+    const latOffset = (((serialNum * 13 + houseNum * 7) % 23) - 11) * 0.0015;
+    const lngOffset = (((serialNum * 19 + houseNum * 13) % 23) - 11) * 0.002;
+    return {
+      lat: coords.lat + latOffset,
+      lng: coords.lng + lngOffset,
+      postcode: bin.postcode,
+      label: `${bin.houseNumber || ''} ${bin.street || ''}, ${bin.town || ''}`.trim()
+    };
+  }
+
+  const tagPostcode = (tag as any).postcode;
+  if (tagPostcode) {
+    const coords = getCoordinatesForPostcode(tagPostcode);
+    const latOffset = (((serialNum * 13) % 23) - 11) * 0.0015;
+    const lngOffset = (((serialNum * 19) % 23) - 11) * 0.002;
+    return {
+      lat: coords.lat + latOffset,
+      lng: coords.lng + lngOffset,
+      postcode: tagPostcode,
+      label: `${(tag as any).houseNumber || ''} ${(tag as any).street || ''}, ${(tag as any).town || ''}`.trim() || 'Registered Tag'
+    };
+  }
 
   if (tag.ownerId) {
     const owner = users.find(u => u.uid === tag.ownerId);
-    if (owner?.postcode) return { ...getCoordinatesForPostcode(owner.postcode), postcode: owner.postcode, label: `Owner: ${owner.firstName} ${owner.lastName}` };
+    if (owner?.postcode) {
+      const coords = getCoordinatesForPostcode(owner.postcode);
+      return { ...coords, postcode: owner.postcode, label: `Owner: ${owner.firstName} ${owner.lastName}` };
+    }
   }
 
-  const serialNum = parseInt(tag.serialNumber.replace(/\D/g,''),10)||0;
   const prefixes = ['SW1A','OX1','M1','LS1','NE1','BS1','G1','CF1','BT1','EH1','L1','NG1','CB1','CO1','B1'];
-  const prefix = prefixes[serialNum%prefixes.length];
+  const prefix = prefixes[serialNum % prefixes.length];
   const c = getCoordinatesForPostcode(prefix);
   return {
-    lat: c.lat + ((serialNum%71)-35)*0.015,
-    lng: c.lng + (((serialNum*13)%71)-35)*0.015,
+    lat: c.lat + ((serialNum % 71) - 35) * 0.015,
+    lng: c.lng + (((serialNum * 13) % 71) - 35) * 0.015,
     postcode: prefix,
     label: 'Unassigned Warehouse Inventory'
   };
@@ -251,7 +279,7 @@ export default function AdminPanel({
         }`,
         variables: { s: serial, bt: editTagBinType, h: editTagHouse, st: editTagStreet, p: editTagPostcode }
       });
-    } catch (err) { console.warn('[Nhost Tag Edit Sync]', err); }
+    } catch {}
 
     onRefresh();
     setEditingTag(null);
@@ -340,9 +368,7 @@ export default function AdminPanel({
           bt: newTagBinType
         }
       });
-    } catch (err) {
-      console.warn('[Nhost Add Tag sync]', err);
-    }
+    } catch {}
     
     onRefresh();
     showToast(`Tag ${serial} (${newTagBinType} bin) successfully assigned to ${addTagModalUser.firstName} ${addTagModalUser.lastName}!`, 'success');
@@ -420,12 +446,21 @@ export default function AdminPanel({
     registeredTagsForMap.forEach(tag => {
       const details = getCoordsForTag(tag, bins, users);
       const isSelected = selectedMapBin?.serialNumber === tag.serialNumber;
-      let colorClass = 'bg-[#45D153]';
-      if (tag.status === 'Available') colorClass = 'bg-teal-400';
-      if (tag.status === 'Lost') colorClass = 'bg-rose-500';
-      if (tag.status === 'Disabled') colorClass = 'bg-slate-400';
       const bin = bins.find(b => b.serialNumber === tag.serialNumber);
+
+      let colorClass = 'bg-[#45D153]';
+      if (bin) {
+        if (bin.binType === 'Black') colorClass = 'bg-slate-800';
+        else if (bin.binType === 'Green') colorClass = 'bg-emerald-500';
+        else if (bin.binType === 'Blue') colorClass = 'bg-blue-500';
+        else if (bin.binType === 'Brown') colorClass = 'bg-amber-700';
+        else if (bin.binType === 'Purple') colorClass = 'bg-purple-500';
+        else if (bin.binType === 'Red') colorClass = 'bg-rose-500';
+      }
+      if (tag.status === 'Available') colorClass = 'bg-teal-400';
+      if (tag.status === 'Lost' || bin?.status === 'Lost') colorClass = 'bg-rose-500';
       if (bin?.status === 'Damaged') colorClass = 'bg-orange-500';
+      if (tag.status === 'Disabled') colorClass = 'bg-slate-400';
       if (isSelected) colorClass = 'bg-amber-400';
 
       markersRef.current[tag.serialNumber]?.remove();
@@ -435,7 +470,7 @@ export default function AdminPanel({
           if (bin) handleSelectMapDot(bin);
           else handleSelectMapDot({
             binId: `tag-${tag.serialNumber}`, serialNumber: tag.serialNumber, binType: 'Other',
-            houseNumber: 'N/A', street: 'Registered Tag', town: 'Live Location',
+            houseNumber: (tag as any).houseNumber || 'N/A', street: (tag as any).street || 'Registered Tag', town: (tag as any).town || 'Live Location',
             county: 'N/A', country: 'United Kingdom', postcode: details.postcode,
             status: tag.status === 'Available' ? 'Active' : 'Lost',
             nextCollection: 'Schedules active', ownerId: tag.ownerId || '',
@@ -444,13 +479,18 @@ export default function AdminPanel({
           });
         });
       marker.bindPopup(`
-        <div class="text-xs p-2.5 font-sans text-gray-950 min-w-[170px]">
-          <p class="font-bold border-b border-gray-100 pb-1 mb-1.5 font-mono">${tag.serialNumber}</p>
-          <p class="font-semibold text-[11px]">${bin ? `${bin.houseNumber||''} ${bin.street||''}` : 'Registered Smart Tag'}</p>
-          <p class="text-[10px] text-gray-500">${bin ? `${bin.town||''}, ${bin.postcode||''}` : `Postcode: ${details.postcode}`}</p>
-          <p class="mt-2 font-mono text-[9px] bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-sm">
-            Status: ${tag.status} ${bin ? `• ${bin.binType}` : ''}
-          </p>
+        <div class="text-xs p-2.5 font-sans text-gray-950 min-w-[180px]">
+          <div class="flex items-center justify-between border-b border-gray-100 pb-1 mb-1.5">
+            <span class="font-bold font-mono text-[#047857]">${tag.serialNumber}</span>
+            <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-gray-100">${bin ? bin.binType : 'Registered'}</span>
+          </div>
+          <p class="font-semibold text-[11px] text-gray-900">${bin ? `${bin.houseNumber || ''} ${bin.street || ''}` : `${(tag as any).houseNumber || ''} ${(tag as any).street || 'Registered Smart Tag'}`}</p>
+          <p class="text-[10px] text-gray-500">${bin ? `${bin.town || ''}, ${bin.postcode || ''}` : `Postcode: ${details.postcode}`}</p>
+          ${bin?.nextCollection ? `<p class="text-[10px] text-emerald-700 mt-1 font-mono">Next: ${bin.nextCollection}</p>` : ''}
+          <div class="mt-2 flex items-center justify-between font-mono text-[9px] bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded">
+            <span>Status: ${bin?.status || tag.status}</span>
+            <span>UK Telemetry</span>
+          </div>
         </div>
       `);
       markersRef.current[tag.serialNumber] = marker;
@@ -478,7 +518,7 @@ export default function AdminPanel({
   // ─── Event Handlers ───────────────────────────────────────────────────────
   const handleSelectMapDot = (bin: Bin) => {
     setSelectedMapBin(bin);
-    setSelectedMapUser(users.find(u => u.uid === bin.ownerId) || null);
+    setSelectedMapUser(users.find(u => u.uid === bin.ownerId || (u.email && bin.ownerEmail && u.email.toLowerCase() === bin.ownerEmail.toLowerCase())) || null);
     setIsEditingBin(false);
   };
 
@@ -499,7 +539,7 @@ export default function AdminPanel({
           variables: { uid: selectedMapUser.uid, e: editUserEmail.trim() }
         });
       }
-    } catch (err) { console.warn('[Nhost] sync warning:', err); }
+    } catch {}
 
     const logs = mockDb.getAllAuditLogs();
     logs.push({ id:`audit-${Math.random().toString(36).slice(2,9)}`, userId: selectedMapBin.ownerId, action:'ADMIN_MODIFIED_BIN_AND_OWNER', ipAddress:'127.0.0.1 (Admin)', userAgent:navigator.userAgent, createdAt:new Date().toISOString(), status:'SUCCESS' });
@@ -514,7 +554,7 @@ export default function AdminPanel({
     mockDb.updateUser(uid, { status: next });
     try {
       await nhost.graphql.request({ query:`mutation($u:String!,$s:String!){ update_sbt_profiles(where:{user_id:{_eq:$u}},_set:{status:$s}){affected_rows} }`, variables:{u:uid,s:next} });
-    } catch (e) { console.warn('[Nhost]',e); }
+    } catch {}
     onRefresh();
     showToast(`Homeowner status updated to ${next}.`, 'info');
   };
@@ -523,7 +563,7 @@ export default function AdminPanel({
     mockDb.updateUser(uid, { accountType: 'admin' });
     try {
       await nhost.graphql.request({ query:`mutation($u:String!){ update_sbt_profiles(where:{user_id:{_eq:$u}},_set:{account_type:"admin"}){affected_rows} }`, variables:{u:uid} });
-    } catch (e) { console.warn('[Nhost]',e); }
+    } catch {}
     onRefresh();
     showToast('User promoted to administrator.', 'success');
   };
@@ -533,7 +573,7 @@ export default function AdminPanel({
     mockDb.updateTag(serial, { status: next });
     try {
       await nhost.graphql.request({ query:`mutation($s:String!,$st:String!){ update_tags(where:{serial_number:{_eq:$s}},_set:{status:$st}){affected_rows} }`, variables:{s:serial,st:next} });
-    } catch (e) { console.warn('[Nhost]',e); }
+    } catch {}
     onRefresh();
     showToast(`Tag ${serial} status set to ${next}.`, 'info');
   };
@@ -569,7 +609,7 @@ export default function AdminPanel({
       const pass = mockDb.adminResetUserPassword(email);
       try {
         await nhost.graphql.request({ query:`mutation($e:String!,$p:String!){ update_sbt_profiles(where:{email:{_eq:$e}},_set:{password_hash:$p}){affected_rows} }`, variables:{e:email,p:pass} });
-      } catch (e) { console.warn('[Nhost]',e); }
+      } catch {}
       onRefresh();
       setResetPassInfo({ email, pass });
     } catch (e: any) {
@@ -589,7 +629,7 @@ export default function AdminPanel({
       onConfirm: async () => {
         try {
           mockDb.adminResetUserAssociation(uid);
-        } catch (e) { console.warn('[mockDb reset user assoc]', e); }
+        } catch {}
 
         try {
           const uuid = toUuid(uid);
@@ -601,7 +641,7 @@ export default function AdminPanel({
             }`,
             variables:{s:uid,u:uuid}
           });
-        } catch (e) { console.warn('[Nhost tag reset sync]',e); }
+        } catch {}
         onRefresh();
         setSelectedMapBin(null);
         setSelectedMapUser(null);
@@ -622,7 +662,7 @@ export default function AdminPanel({
       onConfirm: async () => {
         try {
           mockDb.adminResetTag(serial);
-        } catch (e) { console.warn('[mockDb reset tag]', e); }
+        } catch {}
 
         try {
           await nhost.graphql.request({
@@ -633,7 +673,7 @@ export default function AdminPanel({
             }`,
             variables:{s:serial}
           });
-        } catch (e) { console.warn('[Nhost Tag Delete Sync]',e); }
+        } catch {}
         onRefresh();
         setSelectedMapBin(null);
         setSelectedMapUser(null);
@@ -654,7 +694,7 @@ export default function AdminPanel({
       onConfirm: async () => {
         try {
           mockDb.deleteUser(uid);
-        } catch (e) { console.warn('[mockDb delete user]', e); }
+        } catch {}
 
         try {
           const uuid = toUuid(uid);
@@ -667,7 +707,7 @@ export default function AdminPanel({
             }`,
             variables:{s:uid,u:uuid}
           });
-        } catch (e) { console.warn('[Nhost user delete sync]',e); }
+        } catch {}
         onRefresh();
         setSelectedMapBin(null);
         setSelectedMapUser(null);
@@ -840,8 +880,8 @@ export default function AdminPanel({
                     </div>
                     <div>
                       <span className="text-[9px] font-mono text-emerald-400 uppercase block">Owner</span>
-                      <span className="font-bold">{selectedMapUser?`${selectedMapUser.firstName} ${selectedMapUser.lastName}`:'Unknown'}</span>
-                      <span className="text-[10px] text-gray-400 block font-mono">{selectedMapUser?.email}</span>
+                      <span className="font-bold">{selectedMapUser ? `${selectedMapUser.firstName} ${selectedMapUser.lastName}` : (selectedMapBin.ownerEmail ? 'Registered Homeowner' : 'Unknown')}</span>
+                      <span className="text-[10px] text-gray-400 block font-mono">{selectedMapUser?.email || selectedMapBin.ownerEmail || 'No email associated'}</span>
                     </div>
                     <div>
                       <span className="text-[9px] font-mono text-emerald-400 uppercase block">Address</span>
@@ -943,7 +983,7 @@ export default function AdminPanel({
                                   <span className="font-mono">{b.serialNumber}</span>
                                   <span className="text-[8px] px-1 py-0.5 rounded bg-emerald-200/90 text-emerald-950 font-black uppercase">{b.binType}</span>
                                   <button
-                                    onClick={(e) => { e.stopPropagation(); requestResetTag(b.serialNumber, b.binType, `${u.firstName} ${u.lastName}`); }}
+                                    onClick={(e) => { e?.stopPropagation?.(); requestResetTag(b.serialNumber, b.binType, `${u.firstName} ${u.lastName}`); }}
                                     className="ml-1 p-0.5 text-rose-600 hover:text-white hover:bg-rose-600 rounded transition-colors cursor-pointer"
                                     title={`Delete ONLY tag ${b.serialNumber} (preserves homeowner account profile)`}
                                   >
@@ -1062,8 +1102,9 @@ export default function AdminPanel({
                     </tr>
                   ) : (
                     filteredTags.slice(0, 100).map(t => {
-                      const owner = users.find(u => u.uid === t.ownerId);
+                      const owner = users.find(u => u.uid === t.ownerId || (u.email && t.ownerId && u.email.toLowerCase() === t.ownerId.toLowerCase()));
                       const bin = bins.find(b => b.serialNumber === t.serialNumber);
+                      const email = owner?.email || t.ownerEmail || bin?.ownerEmail || '';
                       return (
                         <tr key={t.serialNumber} className="hover:bg-gray-50/50">
                           <td className="px-6 py-4 font-mono font-black text-[#04352b]">{t.serialNumber}</td>
@@ -1086,10 +1127,10 @@ export default function AdminPanel({
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            {owner ? (
+                            {owner || email ? (
                               <div>
-                                <p className="font-bold text-gray-900">{owner.firstName} {owner.lastName}</p>
-                                <p className="text-[10px] text-gray-400 font-mono">{owner.email}</p>
+                                <p className="font-bold text-gray-900">{owner ? `${owner.firstName} ${owner.lastName}` : 'Registered Homeowner'}</p>
+                                <p className="text-[10px] text-emerald-700 font-mono font-bold">{email}</p>
                               </div>
                             ) : (
                               <span className="text-gray-400 italic text-[11px]">Unassigned Stock</span>

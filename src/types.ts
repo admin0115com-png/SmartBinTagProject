@@ -23,12 +23,23 @@ export interface User {
 
 export interface BinTag {
   serialNumber: string; // e.g., SBT-00000001
-  status: 'Available' | 'Registered' | 'Disabled' | 'Lost' | 'Recovered' | 'Destroyed';
+  status: 'Available' | 'Registered' | 'Disabled' | 'Lost' | 'Recovered' | 'Destroyed' | 'Damaged';
   ownerId: string | null;
+  ownerEmail?: string | null;
   registeredDate: string | null;
   manufacturedDate: string;
   nfcEnabled: boolean;
   notes?: string;
+  address?: string;
+  property_name?: string;
+  propertyName?: string;
+  houseNumber?: string;
+  street?: string;
+  town?: string;
+  county?: string;
+  postcode?: string;
+  bin_colour?: BinColor;
+  binType?: BinColor;
 }
 
 export type BinColor = 'Black' | 'Green' | 'Blue' | 'Brown' | 'Purple' | 'Red' | 'Other';
@@ -36,6 +47,7 @@ export type BinColor = 'Black' | 'Green' | 'Blue' | 'Brown' | 'Purple' | 'Red' |
 export interface Bin {
   binId: string;
   ownerId: string;
+  ownerEmail?: string;
   serialNumber: string;
   binType: BinColor;
   propertyName?: string;

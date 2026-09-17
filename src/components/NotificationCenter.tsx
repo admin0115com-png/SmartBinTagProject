@@ -256,7 +256,7 @@ export default function NotificationCenter({
                         {isUnread && (
                           <button 
                             onClick={(e) => {
-                              e.stopPropagation();
+                              e?.stopPropagation?.();
                               onMarkRead(item.notificationId);
                             }}
                             className="p-1 rounded-md text-gray-400 hover:text-brand-dark hover:bg-gray-100 transition-colors cursor-pointer"
@@ -268,7 +268,7 @@ export default function NotificationCenter({
                         )}
                         <button 
                           onClick={(e) => {
-                            e.stopPropagation();
+                            e?.stopPropagation?.();
                             onDelete(item.notificationId);
                           }}
                           className="p-1 rounded-md text-gray-400 hover:text-rose-600 hover:bg-gray-100 transition-colors cursor-pointer"

@@ -51,6 +51,7 @@ export default function App() {
   // Database synced arrays
   const [users, setUsers] = useState<User[]>([]);
   const [bins, setBins] = useState<Bin[]>([]);
+  const [allBins, setAllBins] = useState<Bin[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [reports, setReports] = useState<BinReport[]>([]);
   const [messages, setMessages] = useState<PrivateMessage[]>([]);
@@ -241,6 +242,15 @@ export default function App() {
       setBins(mockDb.getBins(user.uid));
       setNotifications(mockDb.getNotifications(user.uid));
       
+      // Automatically bench & reconcile tags from Nhost
+      mockDb.benchUserBinsFromNhost(user).then((freshBins) => {
+        if (freshBins) {
+          setBins(freshBins);
+          setAllBins(mockDb.getAllBins());
+          setTags(mockDb.getTags());
+        }
+      }).catch(() => {});
+      
       // Initialize profile settings forms
       const fallbackPhoto = user.profilePhoto || 
                             localStorage.getItem(`sbt_avatar_${user.uid}`) || 
@@ -260,6 +270,8 @@ export default function App() {
     }
 
     // Always sync global admin visibility arrays
+    const all = mockDb.getAllBins();
+    setAllBins(all);
     setUsers(mockDb.getUsers());
     setReports(mockDb.getReports());
     setMessages(mockDb.getMessages());
@@ -937,6 +949,7 @@ export default function App() {
             onEnterSerialDirectly={handleEnterSerialDirectly}
             currentUser={currentUser}
             bins={bins}
+            allBins={allBins}
             onRefresh={syncLocalDatabaseState}
           />
         )}
@@ -991,9 +1004,10 @@ export default function App() {
         )}
 
         {/* VIEW 6: REGISTER SMART BIN STICKER */}
-        {currentUser && route.view === 'register-bin' && (
+        {route.view === 'register-bin' && (
           <RegisterBin 
-            ownerId={currentUser.uid}
+            ownerId={currentUser ? currentUser.uid : 'usr-homeowner-primary'}
+            registered_by={currentUser ? currentUser.uid : 'usr-homeowner-primary'}
             preFilledSerial={route.serialNumber}
             onSuccess={syncLocalDatabaseState}
             setView={handleSetView}
@@ -1037,7 +1051,7 @@ export default function App() {
             tags={tags}
             reports={reports}
             messages={messages}
-            bins={bins}
+            bins={allBins}
             setView={handleSetView}
             onRefresh={syncLocalDatabaseState}
           />

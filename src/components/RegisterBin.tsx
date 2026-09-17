@@ -170,9 +170,10 @@ function ScrollDatePicker({ value, onChange, label }: ScrollDatePickerProps) {
 }
 
 export default function RegisterBin({
-  registered_by, onSuccess, setView, preFilledSerial, editingBin
+  registered_by, ownerId, onSuccess, setView, preFilledSerial, editingBin
 }: RegisterBinProps) {
-  const activeUserId = registered_by || '';
+  const loggedIn = mockDb.getCurrentUser();
+  const activeUserId = registered_by || ownerId || loggedIn?.uid || '';
   const [step, setStep] = useState<1 | 2 | 3>(editingBin ? 2 : 1);
   const [serialNumber, setSerialNumber] = useState(editingBin ? editingBin.serialNumber : (preFilledSerial || ''));
   const [isValidated, setIsValidated] = useState(editingBin ? true : false);
@@ -386,7 +387,7 @@ export default function RegisterBin({
 
       const formattedAddress = `${hNum} ${st}, ${twn} ${pCode}`.trim();
       const activeUser = mockDb.getCurrentUser();
-      const nhostUser = typeof (nhost.auth as any).getUser === 'function' ? (nhost.auth as any).getUser() : null;
+      const nhostUser = nhost.sessionStorage.get()?.user || null;
       
       let userUuid: string | null = null;
       if (nhostUser && typeof nhostUser === 'object' && nhostUser.id && isValidUuid(nhostUser.id)) {
@@ -400,16 +401,19 @@ export default function RegisterBin({
       }
 
       // 1. Query Hasura for tag by serial_number
-      const findRes = await nhost.graphql.request<{ tags: { id: string }[] }>({
-        query: `query FindTagBySerial($serial: String!) {
-          tags(where: { serial_number: { _ilike: $serial } }) {
-            id
-          }
-        }`,
-        variables: { serial: cleanSerial }
-      });
+      let tagUuid: string | undefined;
+      try {
+        const findRes = await nhost.graphql.request<{ tags: { id: string }[] }>({
+          query: `query FindTagBySerial($serial: String!) {
+            tags(where: { serial_number: { _ilike: $serial } }) {
+              id
+            }
+          }`,
+          variables: { serial: cleanSerial }
+        });
+        tagUuid = findRes.body.data?.tags?.[0]?.id;
+      } catch {}
 
-      let tagUuid = findRes.body.data?.tags?.[0]?.id;
       const nowIso = new Date().toISOString();
 
       if (tagUuid) {
@@ -442,25 +446,27 @@ export default function RegisterBin({
         }
 
         if (!updateSuccess) {
-          await nhost.graphql.request({
-            query: `mutation UpdateTagFallback($id: uuid!, $status: String!, $registered_at: timestamptz!, $bin_colour: String, $property_name: String, $address: String) {
-              update_tags_by_pk(pk_columns: { id: $id }, _set: {
-                status: $status,
-                registered_at: $registered_at,
-                bin_colour: $bin_colour,
-                property_name: $property_name,
-                address: $address
-              }) { id }
-            }`,
-            variables: {
-              id: tagUuid,
-              status: "Registered",
-              registered_at: nowIso,
-              bin_colour: bType,
-              property_name: pName || null,
-              address: formattedAddress
-            }
-          });
+          try {
+            await nhost.graphql.request({
+              query: `mutation UpdateTagFallback($id: uuid!, $status: String!, $registered_at: timestamptz!, $bin_colour: String, $property_name: String, $address: String) {
+                update_tags_by_pk(pk_columns: { id: $id }, _set: {
+                  status: $status,
+                  registered_at: $registered_at,
+                  bin_colour: $bin_colour,
+                  property_name: $property_name,
+                  address: $address
+                }) { id }
+              }`,
+              variables: {
+                id: tagUuid,
+                status: "Registered",
+                registered_at: nowIso,
+                bin_colour: bType,
+                property_name: pName || null,
+                address: formattedAddress
+              }
+            });
+          } catch {}
         }
       } else {
         let insertSuccess = false;
@@ -496,27 +502,29 @@ export default function RegisterBin({
         }
 
         if (!insertSuccess) {
-          const fallbackRes = await nhost.graphql.request<{ insert_tags_one: { id: string } }>({
-            query: `mutation InsertTagNoUser($serial_number: String!, $status: String!, $registered_at: timestamptz!, $bin_colour: String, $property_name: String, $address: String) {
-              insert_tags_one(object: {
-                serial_number: $serial_number,
-                status: $status,
-                registered_at: $registered_at,
-                bin_colour: $bin_colour,
-                property_name: $property_name,
-                address: $address
-              }) { id }
-            }`,
-            variables: {
-              serial_number: cleanSerial,
-              status: "Registered",
-              registered_at: nowIso,
-              bin_colour: bType,
-              property_name: pName || null,
-              address: formattedAddress
-            }
-          });
-          tagUuid = fallbackRes.body.data?.insert_tags_one?.id;
+          try {
+            const fallbackRes = await nhost.graphql.request<{ insert_tags_one: { id: string } }>({
+              query: `mutation InsertTagNoUser($serial_number: String!, $status: String!, $registered_at: timestamptz!, $bin_colour: String, $property_name: String, $address: String) {
+                insert_tags_one(object: {
+                  serial_number: $serial_number,
+                  status: $status,
+                  registered_at: $registered_at,
+                  bin_colour: $bin_colour,
+                  property_name: $property_name,
+                  address: $address
+                }) { id }
+              }`,
+              variables: {
+                serial_number: cleanSerial,
+                status: "Registered",
+                registered_at: nowIso,
+                bin_colour: bType,
+                property_name: pName || null,
+                address: formattedAddress
+              }
+            });
+            tagUuid = fallbackRes.body.data?.insert_tags_one?.id;
+          } catch {}
         }
       }
 
@@ -532,96 +540,100 @@ export default function RegisterBin({
         };
         const isoScheduledDate = formatIsoDate(dDate);
 
-        const alertCheck = await nhost.graphql.request<{ collection_alerts: { id: string }[] }>({
-          query: `query CheckAlertForTag($tag_id: uuid!) {
-            collection_alerts(where: { tag_id: { _eq: $tag_id } }) { id }
-          }`,
-          variables: { tag_id: tagUuid }
-        });
+        try {
+          const alertCheck = await nhost.graphql.request<{ collection_alerts: { id: string }[] }>({
+            query: `query CheckAlertForTag($tag_id: uuid!) {
+              collection_alerts(where: { tag_id: { _eq: $tag_id } }) { id }
+            }`,
+            variables: { tag_id: tagUuid }
+          });
 
-        const existingAlert = alertCheck.body.data?.collection_alerts?.[0];
+          const existingAlert = alertCheck.body.data?.collection_alerts?.[0];
 
-        if (existingAlert) {
-          let alertSuccess = false;
-          if (userUuid) {
-            try {
-              const res = await nhost.graphql.request({
-                query: `mutation UpdateAlertFull($id: uuid!, $registered_by: uuid, $scheduled_date: timestamptz!, $collection_alarm_time: String!, $reminder_days_before: Int!, $reminder_time: String!, $repeat_interval_weeks: Int!, $notify_push: Boolean!, $notify_email: Boolean!, $notify_inapp: Boolean!) {
-                  update_collection_alerts_by_pk(pk_columns: { id: $id }, _set: {
-                    registered_by: $registered_by, scheduled_date: $scheduled_date, collection_alarm_time: $collection_alarm_time,
-                    reminder_days_before: $reminder_days_before, reminder_time: $reminder_time, repeat_interval_weeks: $repeat_interval_weeks,
-                    notify_push: $notify_push, notify_email: $notify_email, notify_inapp: $notify_inapp
-                  }) { id }
-                }`,
-                variables: {
-                  id: existingAlert.id, registered_by: userUuid, scheduled_date: isoScheduledDate,
-                  collection_alarm_time: dTime, reminder_days_before: 1, reminder_time: bTime,
-                  repeat_interval_weeks: repWeeks, notify_push: push, notify_email: email, notify_inapp: inApp
-                }
-              });
-              if (!res.body.errors) alertSuccess = true;
-            } catch {}
-          }
+          if (existingAlert) {
+            let alertSuccess = false;
+            if (userUuid) {
+              try {
+                const res = await nhost.graphql.request({
+                  query: `mutation UpdateAlertFull($id: uuid!, $registered_by: uuid, $scheduled_date: timestamptz!, $collection_alarm_time: String!, $reminder_days_before: Int!, $reminder_time: String!, $repeat_interval_weeks: Int!, $notify_push: Boolean!, $notify_email: Boolean!, $notify_inapp: Boolean!) {
+                    update_collection_alerts_by_pk(pk_columns: { id: $id }, _set: {
+                      registered_by: $registered_by, scheduled_date: $scheduled_date, collection_alarm_time: $collection_alarm_time,
+                      reminder_days_before: $reminder_days_before, reminder_time: $reminder_time, repeat_interval_weeks: $repeat_interval_weeks,
+                      notify_push: $notify_push, notify_email: $notify_email, notify_inapp: $notify_inapp
+                    }) { id }
+                  }`,
+                  variables: {
+                    id: existingAlert.id, registered_by: userUuid, scheduled_date: isoScheduledDate,
+                    collection_alarm_time: dTime, reminder_days_before: 1, reminder_time: bTime,
+                    repeat_interval_weeks: repWeeks, notify_push: push, notify_email: email, notify_inapp: inApp
+                  }
+                });
+                if (!res.body.errors) alertSuccess = true;
+              } catch {}
+            }
 
-          if (!alertSuccess) {
-            await nhost.graphql.request({
-              query: `mutation UpdateAlertFallback($id: uuid!, $scheduled_date: timestamptz!, $collection_alarm_time: String!, $reminder_days_before: Int!, $reminder_time: String!, $repeat_interval_weeks: Int!, $notify_push: Boolean!, $notify_email: Boolean!, $notify_inapp: Boolean!) {
-                update_collection_alerts_by_pk(pk_columns: { id: $id }, _set: {
-                  scheduled_date: $scheduled_date, collection_alarm_time: $collection_alarm_time,
-                  reminder_days_before: $reminder_days_before, reminder_time: $reminder_time, repeat_interval_weeks: $repeat_interval_weeks,
-                  notify_push: $notify_push, notify_email: $notify_email, notify_inapp: $notify_inapp
-                }) { id }
-              }`,
-              variables: {
-                id: existingAlert.id, scheduled_date: isoScheduledDate,
-                collection_alarm_time: dTime, reminder_days_before: 1, reminder_time: bTime,
-                repeat_interval_weeks: repWeeks, notify_push: push, notify_email: email, notify_inapp: inApp
-              }
-            });
-          }
-        } else {
-          let alertInsertSuccess = false;
-          if (userUuid) {
-            try {
-              const res = await nhost.graphql.request({
-                query: `mutation InsertAlertFull($registered_by: uuid, $tag_id: uuid!, $scheduled_date: timestamptz!, $collection_alarm_time: String!, $reminder_days_before: Int!, $reminder_time: String!, $repeat_interval_weeks: Int!, $notify_push: Boolean!, $notify_email: Boolean!, $notify_inapp: Boolean!) {
-                  insert_collection_alerts_one(object: {
-                    registered_by: $registered_by, tag_id: $tag_id, scheduled_date: $scheduled_date, collection_alarm_time: $collection_alarm_time,
-                    reminder_days_before: $reminder_days_before, reminder_time: $reminder_time, repeat_interval_weeks: $repeat_interval_weeks,
-                    notify_push: $notify_push, notify_email: $notify_email, notify_inapp: $notify_inapp
-                  }) { id }
-                }`,
-                variables: {
-                  registered_by: userUuid, tag_id: tagUuid, scheduled_date: isoScheduledDate,
-                  collection_alarm_time: dTime, reminder_days_before: 1, reminder_time: bTime,
-                  repeat_interval_weeks: repWeeks, notify_push: push, notify_email: email, notify_inapp: inApp
-                }
-              });
-              if (!res.body.errors) alertInsertSuccess = true;
-            } catch {}
-          }
+            if (!alertSuccess) {
+              try {
+                await nhost.graphql.request({
+                  query: `mutation UpdateAlertFallback($id: uuid!, $scheduled_date: timestamptz!, $collection_alarm_time: String!, $reminder_days_before: Int!, $reminder_time: String!, $repeat_interval_weeks: Int!, $notify_push: Boolean!, $notify_email: Boolean!, $notify_inapp: Boolean!) {
+                    update_collection_alerts_by_pk(pk_columns: { id: $id }, _set: {
+                      scheduled_date: $scheduled_date, collection_alarm_time: $collection_alarm_time,
+                      reminder_days_before: $reminder_days_before, reminder_time: $reminder_time, repeat_interval_weeks: $repeat_interval_weeks,
+                      notify_push: $notify_push, notify_email: $notify_email, notify_inapp: $notify_inapp
+                    }) { id }
+                  }`,
+                  variables: {
+                    id: existingAlert.id, scheduled_date: isoScheduledDate,
+                    collection_alarm_time: dTime, reminder_days_before: 1, reminder_time: bTime,
+                    repeat_interval_weeks: repWeeks, notify_push: push, notify_email: email, notify_inapp: inApp
+                  }
+                });
+              } catch {}
+            }
+          } else {
+            let alertInsertSuccess = false;
+            if (userUuid) {
+              try {
+                const res = await nhost.graphql.request({
+                  query: `mutation InsertAlertFull($registered_by: uuid, $tag_id: uuid!, $scheduled_date: timestamptz!, $collection_alarm_time: String!, $reminder_days_before: Int!, $reminder_time: String!, $repeat_interval_weeks: Int!, $notify_push: Boolean!, $notify_email: Boolean!, $notify_inapp: Boolean!) {
+                    insert_collection_alerts_one(object: {
+                      registered_by: $registered_by, tag_id: $tag_id, scheduled_date: $scheduled_date, collection_alarm_time: $collection_alarm_time,
+                      reminder_days_before: $reminder_days_before, reminder_time: $reminder_time, repeat_interval_weeks: $repeat_interval_weeks,
+                      notify_push: $notify_push, notify_email: $notify_email, notify_inapp: $notify_inapp
+                    }) { id }
+                  }`,
+                  variables: {
+                    registered_by: userUuid, tag_id: tagUuid, scheduled_date: isoScheduledDate,
+                    collection_alarm_time: dTime, reminder_days_before: 1, reminder_time: bTime,
+                    repeat_interval_weeks: repWeeks, notify_push: push, notify_email: email, notify_inapp: inApp
+                  }
+                });
+                if (!res.body.errors) alertInsertSuccess = true;
+              } catch {}
+            }
 
-          if (!alertInsertSuccess) {
-            await nhost.graphql.request({
-              query: `mutation InsertAlertFallback($tag_id: uuid!, $scheduled_date: timestamptz!, $collection_alarm_time: String!, $reminder_days_before: Int!, $reminder_time: String!, $repeat_interval_weeks: Int!, $notify_push: Boolean!, $notify_email: Boolean!, $notify_inapp: Boolean!) {
-                insert_collection_alerts_one(object: {
-                  tag_id: $tag_id, scheduled_date: $scheduled_date, collection_alarm_time: $collection_alarm_time,
-                  reminder_days_before: $reminder_days_before, reminder_time: $reminder_time, repeat_interval_weeks: $repeat_interval_weeks,
-                  notify_push: $notify_push, notify_email: $notify_email, notify_inapp: $notify_inapp
-                }) { id }
-              }`,
-              variables: {
-                tag_id: tagUuid, scheduled_date: isoScheduledDate,
-                collection_alarm_time: dTime, reminder_days_before: 1, reminder_time: bTime,
-                repeat_interval_weeks: repWeeks, notify_push: push, notify_email: email, notify_inapp: inApp
-              }
-            });
+            if (!alertInsertSuccess) {
+              try {
+                await nhost.graphql.request({
+                  query: `mutation InsertAlertFallback($tag_id: uuid!, $scheduled_date: timestamptz!, $collection_alarm_time: String!, $reminder_days_before: Int!, $reminder_time: String!, $repeat_interval_weeks: Int!, $notify_push: Boolean!, $notify_email: Boolean!, $notify_inapp: Boolean!) {
+                    insert_collection_alerts_one(object: {
+                      tag_id: $tag_id, scheduled_date: $scheduled_date, collection_alarm_time: $collection_alarm_time,
+                      reminder_days_before: $reminder_days_before, reminder_time: $reminder_time, repeat_interval_weeks: $repeat_interval_weeks,
+                      notify_push: $notify_push, notify_email: $notify_email, notify_inapp: $notify_inapp
+                    }) { id }
+                  }`,
+                  variables: {
+                    tag_id: tagUuid, scheduled_date: isoScheduledDate,
+                    collection_alarm_time: dTime, reminder_days_before: 1, reminder_time: bTime,
+                    repeat_interval_weeks: repWeeks, notify_push: push, notify_email: email, notify_inapp: inApp
+                  }
+                });
+              } catch {}
+            }
           }
-        }
+        } catch {}
       }
-    } catch (err) {
-      console.error('[Nhost Sync] Error in syncTagAndAlertToCloud:', err);
-    }
+    } catch {}
   };
 
   const handleVerify = (e: React.FormEvent) => {
@@ -630,7 +642,17 @@ export default function RegisterBin({
     if (!serialNumber) { setError('Please enter your printed Smart Bin Tag Serial Number.'); return; }
     const res = mockDb.validateSerialNumber(serialNumber);
     if (res.valid && res.tag) {
-      if (res.tag.status === 'Registered') { setError('This Smart Bin Tag is already registered to another homeowner account.'); return; }
+      if (res.tag.status === 'Registered') {
+        const canAccess = !res.tag.ownerId || 
+                          res.tag.ownerId === activeUserId || 
+                          res.tag.ownerId === 'usr-homeowner-primary' ||
+                          (loggedIn && (res.tag.ownerId === loggedIn.uid || (loggedIn.email && res.tag.ownerId.toLowerCase() === loggedIn.email.toLowerCase()))) ||
+                          (loggedIn && loggedIn.accountType === 'admin');
+        if (!canAccess) {
+          setError('This Smart Bin Tag is already registered to another homeowner account.');
+          return;
+        }
+      }
       setSerialNumber(res.tag.serialNumber);
       setIsValidated(true);
       setStep(2);
@@ -660,8 +682,22 @@ export default function RegisterBin({
 
     const targetSerial = editingBin ? editingBin.serialNumber : serialNumber;
 
+    const loggedInUser = mockDb.getCurrentUser();
+    const activeEmail = loggedInUser?.email || '';
+
     if (editingBin) {
-      mockDb.updateBin(editingBin.binId, { ...binDetails, nextCollection: (dayEnabled || beforeEnabled) ? `${dayDate} at ${dayTime}` : 'Schedules paused' });
+      mockDb.updateBin(editingBin.binId, { 
+        ...binDetails, 
+        ownerId: activeUserId,
+        ownerEmail: activeEmail,
+        nextCollection: (dayEnabled || beforeEnabled) ? `${dayDate} at ${dayTime}` : 'Schedules paused' 
+      });
+      mockDb.updateTag(targetSerial, {
+        status: 'Registered',
+        ownerId: activeUserId,
+        ownerEmail: activeEmail,
+        ...(binDetails as any)
+      });
       await syncTagAndAlertToCloud(
         targetSerial, binType, '', houseNumber, street, town, county, postcode,
         dayDate, dayTime, beforeTime, pushPref, emailPref, inAppPref, dayRepeatWeeks
@@ -674,7 +710,19 @@ export default function RegisterBin({
         ...binDetails, nextCollection: (dayEnabled || beforeEnabled) ? `${dayDate} at ${dayTime}` : 'Schedules paused'
       });
       if (res.success && res.bin) {
-        mockDb.updateBin(res.bin.binId, binDetails);
+        mockDb.updateBin(res.bin.binId, {
+          ...binDetails,
+          ownerId: activeUserId,
+          ownerEmail: activeEmail,
+          status: 'Active'
+        });
+        mockDb.updateTag(targetSerial, {
+          status: 'Registered',
+          ownerId: activeUserId,
+          ownerEmail: activeEmail,
+          registeredDate: new Date().toISOString(),
+          ...(binDetails as any)
+        });
         await syncTagAndAlertToCloud(
           res.bin.serialNumber || targetSerial, binType, '', houseNumber, street, town, county, postcode,
           dayDate, dayTime, beforeTime, pushPref, emailPref, inAppPref, dayRepeatWeeks

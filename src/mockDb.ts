@@ -2,7 +2,7 @@ import {
   User, BinTag, Bin, BinColor, BinReport, PrivateMessage, ReminderSchedule, NotificationItem, SystemSettings,
   UserProfile, UserNotificationPreferences, UserSettings, UserDashboardRecord, DeviceSession, AuditLogEntry, RegistrationHistoryItem, SupportTicket
 } from './types';
-import { nhost, toUuid } from './lib/nhost';
+import { nhost, toUuid, fetchUserTagsFromNhost, fetchCollectionAlertsForTags, deleteTagInNhost } from './lib/nhost';
 import { sendNativeDeviceNotification } from './lib/pushNotifications';
 
 // Helper to generate IDs
@@ -60,7 +60,7 @@ const getPreviousDateStr = (dateStr: string): string => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-// Generate initial tags: Admin tag + Homeowner tags + Pre-seeded available stickers
+// Generate initial tags: Admin tag + Stock available stickers (no pre-assigned demo homeowner tags)
 const generateInitialTags = (): BinTag[] => {
   return [
     {
@@ -73,17 +73,17 @@ const generateInitialTags = (): BinTag[] => {
     },
     {
       serialNumber: 'SBT-00000001',
-      status: 'Registered',
-      ownerId: 'usr-homeowner-primary',
-      registeredDate: '2026-07-16T09:00:00Z',
+      status: 'Available',
+      ownerId: null,
+      registeredDate: null,
       manufacturedDate: '2026-01-10T08:00:00Z',
       nfcEnabled: true
     },
     {
       serialNumber: 'SBT-00000002',
-      status: 'Registered',
-      ownerId: 'usr-homeowner-primary',
-      registeredDate: '2026-07-16T09:15:00Z',
+      status: 'Available',
+      ownerId: null,
+      registeredDate: null,
       manufacturedDate: '2026-01-10T08:00:00Z',
       nfcEnabled: true
     },
@@ -194,58 +194,6 @@ const INITIAL_BINS: Bin[] = [
     beforeCollectionEnabled: true,
     alarmTone: 'Chime Classic',
     repeatIntervalWeeks: 1
-  },
-  {
-    binId: 'bin-home-01',
-    ownerId: 'usr-homeowner-primary',
-    serialNumber: 'SBT-00000001',
-    binType: 'Green',
-    propertyName: 'Highland Cottage',
-    houseNumber: '12',
-    street: 'High Street',
-    town: 'Lincoln',
-    county: 'Lincolnshire',
-    postcode: 'LN5 8PE',
-    country: 'United Kingdom',
-    notes: 'Green recycling wheelie bin beside driveway gate.',
-    registeredDate: '2026-07-16T09:00:00Z',
-    lastUpdated: '2026-07-16T09:00:00Z',
-    status: 'Active',
-    nextCollection: 'Tuesday at 07:00 AM',
-    collectionDayDate: 'Tuesday',
-    collectionDayTime: '07:00 AM',
-    collectionDayEnabled: true,
-    beforeCollectionDate: 'Monday',
-    beforeCollectionTime: '06:00 PM',
-    beforeCollectionEnabled: true,
-    alarmTone: 'Chime Classic',
-    repeatIntervalWeeks: 1
-  },
-  {
-    binId: 'bin-home-02',
-    ownerId: 'usr-homeowner-primary',
-    serialNumber: 'SBT-00000002',
-    binType: 'Black',
-    propertyName: 'Highland Cottage',
-    houseNumber: '12',
-    street: 'High Street',
-    town: 'Lincoln',
-    county: 'Lincolnshire',
-    postcode: 'LN5 8PE',
-    country: 'United Kingdom',
-    notes: 'Grey general waste wheelie bin behind front hedge.',
-    registeredDate: '2026-07-16T09:15:00Z',
-    lastUpdated: '2026-07-16T09:15:00Z',
-    status: 'Active',
-    nextCollection: 'Friday at 07:00 AM',
-    collectionDayDate: 'Friday',
-    collectionDayTime: '07:00 AM',
-    collectionDayEnabled: true,
-    beforeCollectionDate: 'Thursday',
-    beforeCollectionTime: '06:00 PM',
-    beforeCollectionEnabled: true,
-    alarmTone: 'Bell Echo',
-    repeatIntervalWeeks: 2
   }
 ];
 
@@ -295,30 +243,6 @@ const INITIAL_REMINDERS: ReminderSchedule[] = [
     enabled: true,
     nextReminder: '2026-07-21T18:00:00',
     alarmTone: 'Chime Classic'
-  },
-  {
-    reminderId: 'rem-home-01',
-    ownerId: 'usr-homeowner-primary',
-    serialNumber: 'SBT-00000001',
-    collectionDay: 'Tuesday',
-    frequency: 'Weekly',
-    reminderOneTime: '18:00',
-    reminderTwoTime: '07:00',
-    enabled: true,
-    nextReminder: '2026-07-21T18:00:00',
-    alarmTone: 'Chime Classic'
-  },
-  {
-    reminderId: 'rem-home-02',
-    ownerId: 'usr-homeowner-primary',
-    serialNumber: 'SBT-00000002',
-    collectionDay: 'Friday',
-    frequency: 'Weekly',
-    reminderOneTime: '18:00',
-    reminderTwoTime: '07:00',
-    enabled: true,
-    nextReminder: '2026-07-24T18:00:00',
-    alarmTone: 'Bell Echo'
   }
 ];
 
@@ -399,7 +323,7 @@ const initDb = () => {
 
   localStorage.setItem('sbt_users', JSON.stringify(filteredUsers));
 
-  // Sync tags: ensure homeowner tags are available or registered
+  // Sync tags: ensure stock tags are available and purge any legacy demo associations
   if (!tagsStr) {
     localStorage.setItem('sbt_tags', JSON.stringify(generateInitialTags()));
   } else {
@@ -414,6 +338,20 @@ const initDb = () => {
           tagsChanged = true;
         }
       });
+      // Purge any legacy demo tags assigned to demo resident
+      existingTags.forEach(t => {
+        if (t.ownerId === 'usr-homeowner-primary' || t.ownerEmail === 'resident@gmail.com') {
+          t.status = 'Available';
+          t.ownerId = null;
+          t.ownerEmail = null;
+          t.registeredDate = null;
+          t.address = '';
+          t.property_name = '';
+          t.bin_colour = undefined;
+          t.notes = '';
+          tagsChanged = true;
+        }
+      });
       if (tagsChanged) {
         localStorage.setItem('sbt_tags', JSON.stringify(existingTags));
       }
@@ -422,22 +360,22 @@ const initDb = () => {
     }
   }
 
-  // Sync bins: ensure homeowner bins exist
+  // Sync bins: purge legacy demo bins so users only see tags they registered themselves
   const existingBinsStr = localStorage.getItem('sbt_bins');
   if (!existingBinsStr) {
     localStorage.setItem('sbt_bins', JSON.stringify(INITIAL_BINS));
   } else {
     try {
       const currentBins: Bin[] = JSON.parse(existingBinsStr);
-      let binsChanged = false;
-      INITIAL_BINS.forEach(initBin => {
-        if (!currentBins.some(b => b.serialNumber === initBin.serialNumber)) {
-          currentBins.push(initBin);
-          binsChanged = true;
-        }
-      });
-      if (binsChanged) {
-        localStorage.setItem('sbt_bins', JSON.stringify(currentBins));
+      // Clean out legacy demo bins
+      const filteredBins = currentBins.filter(b => 
+        b.binId !== 'bin-home-01' && 
+        b.binId !== 'bin-home-02' && 
+        b.ownerId !== 'usr-homeowner-primary' &&
+        b.ownerEmail !== 'resident@gmail.com'
+      );
+      if (filteredBins.length !== currentBins.length) {
+        localStorage.setItem('sbt_bins', JSON.stringify(filteredBins));
       }
     } catch {
       localStorage.setItem('sbt_bins', JSON.stringify(INITIAL_BINS));
@@ -457,8 +395,15 @@ const initDb = () => {
     localStorage.setItem('sbt_reminders', JSON.stringify(INITIAL_REMINDERS));
   } else {
     try {
-      const currentRem: ReminderSchedule[] = JSON.parse(existingRemStr);
-      let remChanged = false;
+      let currentRem: ReminderSchedule[] = JSON.parse(existingRemStr);
+      // Remove any legacy demo homeowner reminders
+      const initialLength = currentRem.length;
+      currentRem = currentRem.filter(r => 
+        r.reminderId !== 'rem-home-01' && 
+        r.reminderId !== 'rem-home-02' && 
+        r.ownerId !== 'usr-homeowner-primary'
+      );
+      let remChanged = currentRem.length !== initialLength;
       INITIAL_REMINDERS.forEach(initRem => {
         if (!currentRem.some(r => r.serialNumber === initRem.serialNumber)) {
           currentRem.push(initRem);
@@ -1306,10 +1251,8 @@ export const mockDb = {
           status: 'OPEN',
           ref: refCode
         }
-      }).catch(err => console.warn('[Nhost Cloud Sync] Support ticket save warning:', err));
-    } catch (e) {
-      console.warn('[Nhost Cloud Sync] Exception saving support ticket:', e);
-    }
+      }).catch(() => {});
+    } catch {}
 
     // Log action to Registration History & Audit Log
     const histories = getFromStorage<RegistrationHistoryItem[]>('sbt_registration_history');
@@ -1363,10 +1306,8 @@ export const mockDb = {
             }
           }`,
           variables: { id: ticketId, status }
-        }).catch(err => console.warn('[Nhost Cloud Sync] Update support ticket status warning:', err));
-      } catch (e) {
-        console.warn('[Nhost Cloud Sync] Exception updating support ticket status:', e);
-      }
+        }).catch(() => {});
+      } catch {}
     }
   },
 
@@ -1384,10 +1325,8 @@ export const mockDb = {
           }
         }`,
         variables: { id: ticketId }
-      }).catch(err => console.warn('[Nhost Cloud Sync] Delete support ticket warning:', err));
-    } catch (e) {
-      console.warn('[Nhost Cloud Sync] Exception deleting support ticket:', e);
-    }
+      }).catch(() => {});
+    } catch {}
   },
 
   getUsers: (): User[] => {
@@ -1478,10 +1417,8 @@ export const mockDb = {
             }
           }`,
           variables: { uid, email: userEmail, avatarUrl: fields.profilePhoto || '' }
-        }).catch(err => console.warn('[Nhost Cloud Sync] Avatar update warning:', err));
-      } catch (e) {
-        console.warn('[Nhost Cloud Sync] Exception updating avatar in Nhost:', e);
-      }
+        }).catch(() => {});
+      } catch {}
     }
 
     triggerDbChange();
@@ -1666,7 +1603,11 @@ export const mockDb = {
         const uuid = toUuid(user.uid);
         if (uuid) userUids.add(uuid);
       }
-      if (tag.ownerId && (userUids.has(tag.ownerId) || userUids.has(tag.ownerId.toLowerCase()))) {
+      const canAccess = !tag.ownerId || 
+                        tag.ownerId === '' || 
+                        (user && (userUids.has(tag.ownerId) || userUids.has(tag.ownerId.toLowerCase()))) ||
+                        (user && user.accountType === 'admin');
+      if (canAccess) {
         return { valid: true, tag };
       }
       return { valid: false, tag, error: 'This tag has already been registered to another user' };
@@ -1690,7 +1631,20 @@ export const mockDb = {
     }
     const uuid = toUuid(user.uid);
     if (uuid) userUids.add(uuid);
-    return tags.filter(t => t.ownerId && (userUids.has(t.ownerId) || userUids.has(t.ownerId.toLowerCase())));
+
+    // Cross-check with user's registered bins so tags bound to bins always show
+    const bins = getFromStorage<Bin[]>('sbt_bins');
+    const userBinSerials = new Set<string>();
+    for (const b of bins) {
+      if (b.ownerId && (userUids.has(b.ownerId) || userUids.has(b.ownerId.toLowerCase()))) {
+        userBinSerials.add(b.serialNumber);
+      }
+    }
+
+    return tags.filter(t => 
+      userBinSerials.has(t.serialNumber) || 
+      (t.ownerId && (userUids.has(t.ownerId) || userUids.has(t.ownerId.toLowerCase())))
+    );
   },
 
   updateTag: (serialNumber: string, fields: Partial<BinTag>): BinTag => {
@@ -1783,7 +1737,7 @@ export const mockDb = {
     if (!user) return [];
 
     const userUids = new Set<string>();
-    userUids.add(user.uid);
+    if (user.uid) userUids.add(user.uid);
     if (ownerId) {
       userUids.add(ownerId);
       userUids.add(ownerId.toLowerCase());
@@ -1796,26 +1750,30 @@ export const mockDb = {
     const uuid = toUuid(user.uid);
     if (uuid) userUids.add(uuid);
 
-    const isMatch = (oid?: string | null) => {
-      if (!oid) return false;
-      return userUids.has(oid) || userUids.has(oid.toLowerCase());
+    const isMatch = (oid?: string | null, oemail?: string | null) => {
+      if (!oid && !oemail) return false;
+      if (oid && (userUids.has(oid) || userUids.has(oid.toLowerCase()))) return true;
+      if (oemail && user.email && oemail.toLowerCase().trim() === user.email.toLowerCase().trim()) return true;
+      return false;
     };
 
+    // When ownerId is specifically provided (e.g. user.uid), return only bins matching that account
+    if (ownerId) {
+      return bins.filter(b => isMatch(b.ownerId, b.ownerEmail));
+    }
+
     if (user.accountType === 'admin') {
-      if (ownerId && ownerId !== user.uid) {
-        return bins.filter(b => isMatch(b.ownerId));
-      }
       return bins;
     }
 
-    let userBins = bins.filter(b => isMatch(b.ownerId));
+    let userBins = bins.filter(b => isMatch(b.ownerId, b.ownerEmail));
 
-    // Cross-check registered/assigned tags in sbt_tags
+    // Cross-check registered/assigned tags in sbt_tags for this specific user
     const tags = getFromStorage<BinTag[]>('sbt_tags');
     let binsUpdated = false;
 
     for (const tag of tags) {
-      if (tag.status === 'Registered' && isMatch(tag.ownerId)) {
+      if (tag.status === 'Registered' && isMatch(tag.ownerId, tag.ownerEmail)) {
         const alreadyInUserBins = userBins.some(b => b.serialNumber === tag.serialNumber);
         if (!alreadyInUserBins) {
           const globalBin = bins.find(b => b.serialNumber === tag.serialNumber);
@@ -1827,13 +1785,14 @@ export const mockDb = {
             const newBin: Bin = {
               binId: 'bin-' + Math.random().toString(36).substring(2, 9),
               ownerId: user.uid,
+              ownerEmail: user.email,
               serialNumber: tag.serialNumber,
               binType: (tag as any).bin_colour || 'Green',
               propertyName: (tag as any).property_name || '',
-              houseNumber: (tag as any).house_number || ((user as any).houseNumber || '12'),
-              street: (tag as any).street_name || ((user as any).street || 'High Street'),
+              houseNumber: (tag as any).houseNumber || (tag as any).house_number || ((user as any).houseNumber || '1'),
+              street: (tag as any).street || (tag as any).street_name || ((user as any).street || 'High Street'),
               town: (tag as any).town || ((user as any).town || 'Lincoln'),
-              county: 'Lincolnshire',
+              county: (tag as any).county || 'Lincolnshire',
               postcode: (tag as any).postcode || (user.postcode || 'LN5 8PE'),
               country: 'United Kingdom',
               registeredDate: tag.registeredDate || new Date().toISOString(),
@@ -1863,21 +1822,92 @@ export const mockDb = {
     return userBins;
   },
 
+  getAllBins: (): Bin[] => {
+    const bins = getFromStorage<Bin[]>('sbt_bins');
+    const tags = getFromStorage<BinTag[]>('sbt_tags');
+    let updated = false;
+
+    for (const tag of tags) {
+      if (tag.status === 'Registered' && tag.ownerId) {
+        const existing = bins.find(b => b.serialNumber === tag.serialNumber);
+        if (!existing) {
+          const newBin: Bin = {
+            binId: 'bin-' + Math.random().toString(36).substring(2, 9),
+            ownerId: tag.ownerId,
+            serialNumber: tag.serialNumber,
+            binType: (tag as any).bin_colour || (tag as any).binType || 'Green',
+            propertyName: (tag as any).propertyName || '',
+            houseNumber: (tag as any).houseNumber || (tag as any).house_number || '12',
+            street: (tag as any).street || (tag as any).street_name || 'High Street',
+            town: (tag as any).town || 'Lincoln',
+            county: 'Lincolnshire',
+            postcode: (tag as any).postcode || 'LN5 8PE',
+            country: 'United Kingdom',
+            registeredDate: tag.registeredDate || new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            status: 'Active',
+            nextCollection: (tag as any).nextCollection || 'Tuesday at 07:00 AM',
+            collectionDayDate: 'Tuesday',
+            collectionDayTime: '07:00 AM',
+            collectionDayEnabled: true,
+            beforeCollectionDate: 'Monday',
+            beforeCollectionTime: '06:00 PM',
+            beforeCollectionEnabled: true,
+            alarmTone: 'Chime Classic'
+          };
+          bins.push(newBin);
+          updated = true;
+        } else {
+          if ((tag as any).houseNumber && !existing.houseNumber) {
+            existing.houseNumber = (tag as any).houseNumber;
+            updated = true;
+          }
+          if ((tag as any).street && !existing.street) {
+            existing.street = (tag as any).street;
+            updated = true;
+          }
+          if ((tag as any).postcode && !existing.postcode) {
+            existing.postcode = (tag as any).postcode;
+            updated = true;
+          }
+        }
+      }
+    }
+
+    if (updated) {
+      setToStorage('sbt_bins', bins);
+    }
+    return bins;
+  },
+
   registerBin: (ownerId: string, serialNumber: string, binDetails: Omit<Bin, 'binId' | 'ownerId' | 'serialNumber' | 'registeredDate' | 'lastUpdated' | 'status'>): { success: boolean; bin?: Bin; error?: string } => {
+    const user = getLoggedInUser();
+    const resolvedOwnerId = ownerId || (user ? user.uid : '');
+    const allUsers = getFromStorage<User[]>('sbt_users') || [];
+    const matchedUser = allUsers.find(u => u.uid === resolvedOwnerId) || user;
+    const resolvedOwnerEmail = matchedUser?.email || (user ? user.email : '');
+
     const validation = mockDb.validateSerialNumber(serialNumber);
     if (!validation.valid || !validation.tag) {
       return { success: false, error: validation.error || 'Invalid Serial Number.' };
     }
 
-    if (validation.tag.status === 'Registered' && validation.tag.ownerId && validation.tag.ownerId !== ownerId) {
-      return { success: false, error: 'This Smart Bin Tag is already registered to another user account.' };
+    if (validation.tag.status === 'Registered' && validation.tag.ownerId) {
+      const isOwner = validation.tag.ownerId === resolvedOwnerId || 
+                      validation.tag.ownerId === '' ||
+                      (user && (validation.tag.ownerId === user.uid || (user.email && validation.tag.ownerId.toLowerCase() === user.email.toLowerCase())));
+      if (!isOwner && user?.accountType !== 'admin') {
+        return { success: false, error: 'This Smart Bin Tag is already registered to another user account.' };
+      }
     }
 
-    // Register tag
+    // Register tag & persist location attributes and owner email
     mockDb.updateTag(validation.tag.serialNumber, {
       status: 'Registered',
-      ownerId,
-      registeredDate: new Date().toISOString()
+      ownerId: resolvedOwnerId,
+      ownerEmail: resolvedOwnerEmail,
+      registeredDate: new Date().toISOString(),
+      ...(binDetails as any)
     });
 
     // Create or update the bin
@@ -1889,7 +1919,8 @@ export const mockDb = {
       targetBin = {
         ...bins[existingIndex],
         ...binDetails,
-        ownerId,
+        ownerId: resolvedOwnerId,
+        ownerEmail: resolvedOwnerEmail,
         serialNumber: validation.tag.serialNumber,
         lastUpdated: new Date().toISOString(),
         status: 'Active',
@@ -1900,7 +1931,8 @@ export const mockDb = {
       targetBin = {
         ...binDetails,
         binId: 'bin-' + generateId(),
-        ownerId,
+        ownerId: resolvedOwnerId,
+        ownerEmail: resolvedOwnerEmail,
         serialNumber: validation.tag.serialNumber, // standardized format
         registeredDate: new Date().toISOString(),
         lastUpdated: new Date().toISOString(),
@@ -1938,7 +1970,7 @@ export const mockDb = {
     const existingRemIdx = reminders.findIndex(r => r.serialNumber === targetBin.serialNumber);
     const newRem: ReminderSchedule = {
       reminderId: existingRemIdx !== -1 ? reminders[existingRemIdx].reminderId : ('rem-' + generateId()),
-      ownerId,
+      ownerId: resolvedOwnerId,
       serialNumber: targetBin.serialNumber,
       collectionDay,
       frequency: 'Weekly',
@@ -1957,11 +1989,25 @@ export const mockDb = {
 
     // Notification
     mockDb.addNotification(
-      ownerId,
+      resolvedOwnerId,
       'Account',
       'Smart Bin Registered!',
       `Your ${targetBin.binType} Bin has been successfully linked with serial number ${targetBin.serialNumber}.`
     );
+
+    // Ensure tag in sbt_tags is updated to Registered with full location details
+    const tags = getFromStorage<BinTag[]>('sbt_tags');
+    const tagIdx = tags.findIndex(t => t.serialNumber === targetBin.serialNumber);
+    if (tagIdx !== -1) {
+      tags[tagIdx] = {
+        ...tags[tagIdx],
+        status: 'Registered',
+        ownerId: resolvedOwnerId,
+        registeredDate: tags[tagIdx].registeredDate || new Date().toISOString(),
+        ...(binDetails as any)
+      };
+      setToStorage('sbt_tags', tags);
+    }
 
     return { success: true, bin: targetBin };
   },
@@ -2009,11 +2055,31 @@ export const mockDb = {
     } as Bin;
     bins[index] = updatedBin;
 
-    // Synchronize tag status if state changed
-    if (fields.status === 'Lost') {
-      mockDb.updateTag(originalBin.serialNumber, { status: 'Lost' });
-    } else if (fields.status === 'Active' && originalBin.status === 'Lost') {
-      mockDb.updateTag(originalBin.serialNumber, { status: 'Registered' });
+    // Synchronize tag status, colour, address, property name and notes so Admin Panel & Map are updated in real-time
+    if (updatedBin.serialNumber) {
+      const formattedAddress = [
+        updatedBin.propertyName,
+        updatedBin.houseNumber,
+        updatedBin.street,
+        updatedBin.town,
+        updatedBin.county,
+        updatedBin.postcode
+      ].filter(Boolean).join(', ');
+
+      mockDb.updateTag(updatedBin.serialNumber, {
+        bin_colour: updatedBin.binType,
+        property_name: updatedBin.propertyName || '',
+        houseNumber: updatedBin.houseNumber || '',
+        street: updatedBin.street || '',
+        town: updatedBin.town || '',
+        county: updatedBin.county || '',
+        postcode: updatedBin.postcode || '',
+        notes: updatedBin.notes || '',
+        address: formattedAddress,
+        ownerId: updatedBin.ownerId,
+        ownerEmail: updatedBin.ownerEmail,
+        status: updatedBin.status === 'Lost' ? 'Lost' : (updatedBin.status === 'Damaged' ? 'Damaged' : 'Registered')
+      });
     }
 
     setToStorage('sbt_bins', bins);
@@ -2082,11 +2148,21 @@ export const mockDb = {
     const bin = bins.find(b => b.binId === binId);
     if (!bin) return false;
 
-    // Release tag
+    // Fully release tag back to Available stock in sbt_tags
     mockDb.updateTag(bin.serialNumber, {
       status: 'Available',
       ownerId: null,
-      registeredDate: null
+      ownerEmail: null,
+      registeredDate: null,
+      propertyName: '',
+      houseNumber: '',
+      street: '',
+      town: '',
+      county: '',
+      postcode: '',
+      notes: '',
+      address: '',
+      bin_colour: undefined
     });
 
     // Remove reminders
@@ -2108,11 +2184,21 @@ export const mockDb = {
       mockDb.deleteBin(linkedBin.binId);
     }
     
-    // Always force tag reset state (removes ownerId, sets registeredDate to null, status to Available)
+    // Always force tag reset state (removes ownerId, ownerEmail, sets registeredDate to null, status to Available)
     mockDb.updateTag(normalized, {
       status: 'Available',
       ownerId: null,
-      registeredDate: null
+      ownerEmail: null,
+      registeredDate: null,
+      propertyName: '',
+      houseNumber: '',
+      street: '',
+      town: '',
+      county: '',
+      postcode: '',
+      notes: '',
+      address: '',
+      bin_colour: undefined
     });
     
     // Force remove reminders
@@ -2121,6 +2207,253 @@ export const mockDb = {
     setToStorage('sbt_reminders', remainingReminders);
 
     return true;
+  },
+
+  // Bench and synchronize user tags directly from Nhost to ensure only registered tags appear
+  benchUserBinsFromNhost: async (user: User): Promise<Bin[]> => {
+    if (!user) return [];
+    try {
+      const uids = [user.uid];
+      const uuid = toUuid(user.uid);
+      if (uuid && uuid !== user.uid) uids.push(uuid);
+      if ((user as any).id) uids.push((user as any).id);
+
+      const nhostTags = await fetchUserTagsFromNhost(uids);
+      const isUserAdmin = user.accountType === 'admin' || (user.email && user.email.toLowerCase() === 'admin0115.com@gmail.com');
+
+      // If Nhost is unreachable, schema is not initialized, or queries are unavailable:
+      if (nhostTags === null) {
+        // Retain existing local bins/tags state safely without purging
+        return mockDb.getBins(user.uid);
+      }
+
+      // If user has NO registered tags in Nhost (they haven't registered any yet):
+      if (nhostTags.length === 0) {
+        if (!isUserAdmin) {
+          // Clear any bins belonging to this user
+          const currentBins = getFromStorage<Bin[]>('sbt_bins');
+          const filteredBins = currentBins.filter(b => b.ownerId !== user.uid && b.ownerEmail !== user.email);
+          if (filteredBins.length !== currentBins.length) {
+            setToStorage('sbt_bins', filteredBins);
+          }
+
+          // Clear any tag ownership in sbt_tags for this user
+          const currentTags = getFromStorage<BinTag[]>('sbt_tags');
+          let tagsChanged = false;
+          currentTags.forEach(t => {
+            if (t.ownerId === user.uid || (user.email && t.ownerEmail === user.email)) {
+              t.status = 'Available';
+              t.ownerId = null;
+              t.ownerEmail = null;
+              t.registeredDate = null;
+              t.address = '';
+              t.property_name = '';
+              t.bin_colour = undefined;
+              t.notes = '';
+              tagsChanged = true;
+            }
+          });
+          if (tagsChanged) setToStorage('sbt_tags', currentTags);
+
+          // Remove reminders for this user
+          const currentReminders = getFromStorage<ReminderSchedule[]>('sbt_reminders');
+          const filteredReminders = currentReminders.filter(r => r.ownerId !== user.uid);
+          if (filteredReminders.length !== currentReminders.length) {
+            setToStorage('sbt_reminders', filteredReminders);
+          }
+
+          return [];
+        }
+        return mockDb.getBins(user.uid);
+      }
+
+      // If Nhost has registered tags for this user:
+      const tagIds = nhostTags.map(t => t.id).filter(Boolean);
+      let alerts: any[] = [];
+      try {
+        if (tagIds.length > 0) {
+          alerts = await fetchCollectionAlertsForTags(tagIds);
+        }
+      } catch {}
+
+      const currentBins = getFromStorage<Bin[]>('sbt_bins');
+      const currentTags = getFromStorage<BinTag[]>('sbt_tags');
+      const currentReminders = getFromStorage<ReminderSchedule[]>('sbt_reminders');
+      let binsChanged = false;
+      let tagsChanged = false;
+      let remChanged = false;
+
+      const validSerials = new Set(nhostTags.map(t => t.serial_number.toUpperCase()));
+
+      // Purge bins for this user that are not in Nhost
+      if (!isUserAdmin) {
+        const preLen = currentBins.length;
+        const keptBins = currentBins.filter(b => {
+          const isUserBin = (b.ownerId === user.uid || (user.email && b.ownerEmail === user.email));
+          if (!isUserBin) return true;
+          return validSerials.has(b.serialNumber.toUpperCase());
+        });
+        if (keptBins.length !== preLen) {
+          currentBins.length = 0;
+          currentBins.push(...keptBins);
+          binsChanged = true;
+        }
+      }
+
+      for (const nTag of nhostTags) {
+        const tagSerial = nTag.serial_number.toUpperCase();
+        const tagAlert = alerts.find((a: any) => a.tag_id === nTag.id);
+
+        // Derive alert parameters
+        const scheduledDateStr = tagAlert?.scheduled_date || '';
+        let colDay = 'Tuesday';
+        if (scheduledDateStr) {
+          const d = new Date(scheduledDateStr);
+          if (!isNaN(d.getTime())) {
+            colDay = d.toLocaleDateString('en-US', { weekday: 'long' });
+          }
+        }
+        const colTime24 = tagAlert?.collection_alarm_time || '07:00';
+        const colTime12 = to12Hour(colTime24);
+        const beforeTime24 = tagAlert?.reminder_time || '18:00';
+        const beforeTime12 = to12Hour(beforeTime24);
+        const repeatWeeks = tagAlert?.repeat_interval_weeks || 1;
+
+        // Parse address if present
+        let parsedHouse = (user as any).houseNumber || '';
+        let parsedStreet = (user as any).street || '';
+        let parsedTown = (user as any).town || 'Lincoln';
+        let parsedPostcode = user.postcode || 'LN5 8PE';
+        if (nTag.address) {
+          const parts = nTag.address.split(',').map((s: string) => s.trim());
+          if (parts.length >= 1 && !parsedHouse) parsedHouse = parts[0];
+          if (parts.length >= 2 && !parsedStreet) parsedStreet = parts[1];
+          if (parts.length >= 3 && !parsedTown) parsedTown = parts[2];
+          const postMatch = nTag.address.match(/[A-Z]{1,2}[0-9][A-Z0-9]?\s?[0-9][A-Z]{2}/i);
+          if (postMatch) parsedPostcode = postMatch[0].toUpperCase();
+        }
+
+        // Update or insert into sbt_tags
+        const existingTagIdx = currentTags.findIndex(t => t.serialNumber.toUpperCase() === tagSerial);
+        if (existingTagIdx !== -1) {
+          currentTags[existingTagIdx] = {
+            ...currentTags[existingTagIdx],
+            status: 'Registered',
+            ownerId: user.uid,
+            ownerEmail: user.email,
+            registeredDate: nTag.registered_at || new Date().toISOString(),
+            address: nTag.address || currentTags[existingTagIdx].address,
+            bin_colour: (nTag.bin_colour as any) || currentTags[existingTagIdx].bin_colour,
+            property_name: nTag.property_name || (currentTags[existingTagIdx] as any).property_name,
+            notes: nTag.notes || currentTags[existingTagIdx].notes
+          };
+          tagsChanged = true;
+        } else {
+          currentTags.push({
+            serialNumber: nTag.serial_number,
+            status: 'Registered',
+            ownerId: user.uid,
+            ownerEmail: user.email,
+            registeredDate: nTag.registered_at || new Date().toISOString(),
+            address: nTag.address || '',
+            bin_colour: (nTag.bin_colour as any) || 'Green',
+            property_name: nTag.property_name || '',
+            notes: nTag.notes || '',
+            manufacturedDate: '2026-01-10T08:00:00Z',
+            nfcEnabled: true
+          });
+          tagsChanged = true;
+        }
+
+        // Update or insert into sbt_bins
+        const existingBin = currentBins.find(b => b.serialNumber.toUpperCase() === tagSerial);
+        if (!existingBin) {
+          currentBins.push({
+            binId: 'bin-' + Math.random().toString(36).substring(2, 9),
+            ownerId: user.uid,
+            ownerEmail: user.email,
+            serialNumber: nTag.serial_number,
+            binType: (nTag.bin_colour as any) || 'Green',
+            propertyName: nTag.property_name || '',
+            houseNumber: parsedHouse || '1',
+            street: parsedStreet || 'High Street',
+            town: parsedTown || 'Lincoln',
+            county: 'Lincolnshire',
+            postcode: parsedPostcode || 'LN5 8PE',
+            country: 'United Kingdom',
+            notes: nTag.notes || '',
+            registeredDate: nTag.registered_at || new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            status: 'Active',
+            nextCollection: `${colDay} at ${colTime12}`,
+            collectionDayDate: colDay,
+            collectionDayTime: colTime12,
+            collectionDayEnabled: tagAlert ? (tagAlert.notify_push || tagAlert.notify_email) : true,
+            beforeCollectionDate: 'Day Before',
+            beforeCollectionTime: beforeTime12,
+            beforeCollectionEnabled: tagAlert ? (tagAlert.notify_push || tagAlert.notify_email) : true,
+            repeatIntervalWeeks: repeatWeeks,
+            alarmTone: 'Chime Classic'
+          });
+          binsChanged = true;
+        } else {
+          let bMod = false;
+          if (nTag.bin_colour && existingBin.binType !== nTag.bin_colour) {
+            existingBin.binType = nTag.bin_colour as any;
+            bMod = true;
+          }
+          if (nTag.property_name && existingBin.propertyName !== nTag.property_name) {
+            existingBin.propertyName = nTag.property_name;
+            bMod = true;
+          }
+          if (nTag.notes && existingBin.notes !== nTag.notes) {
+            existingBin.notes = nTag.notes;
+            bMod = true;
+          }
+          if (existingBin.ownerId !== user.uid) {
+            existingBin.ownerId = user.uid;
+            bMod = true;
+          }
+          if (tagAlert) {
+            existingBin.collectionDayDate = colDay;
+            existingBin.collectionDayTime = colTime12;
+            existingBin.beforeCollectionTime = beforeTime12;
+            existingBin.repeatIntervalWeeks = repeatWeeks;
+            bMod = true;
+          }
+          if (bMod) binsChanged = true;
+        }
+
+        // Sync reminder schedule in sbt_reminders
+        const rIndex = currentReminders.findIndex(r => r.serialNumber.toUpperCase() === tagSerial);
+        const remRecord: ReminderSchedule = {
+          reminderId: rIndex !== -1 ? currentReminders[rIndex].reminderId : 'rem-' + generateId(),
+          ownerId: user.uid,
+          serialNumber: nTag.serial_number,
+          collectionDay: colDay,
+          frequency: repeatWeeks === 2 ? 'Fortnightly' : (repeatWeeks === 4 ? 'Monthly' : 'Weekly'),
+          reminderOneTime: beforeTime24,
+          reminderTwoTime: colTime24,
+          enabled: tagAlert ? (tagAlert.notify_push || tagAlert.notify_email) : true,
+          nextReminder: scheduledDateStr ? `${scheduledDateStr}T${beforeTime24}:00` : new Date().toISOString(),
+          alarmTone: 'Chime Classic'
+        };
+        if (rIndex !== -1) {
+          currentReminders[rIndex] = remRecord;
+        } else {
+          currentReminders.push(remRecord);
+        }
+        remChanged = true;
+      }
+
+      if (tagsChanged) setToStorage('sbt_tags', currentTags);
+      if (binsChanged) setToStorage('sbt_bins', currentBins);
+      if (remChanged) setToStorage('sbt_reminders', currentReminders);
+
+      return mockDb.getBins(user.uid);
+    } catch {
+      return mockDb.getBins(user.uid);
+    }
   },
 
   verifyUserEmail: (userId: string): boolean => {
@@ -2218,10 +2551,8 @@ export const mockDb = {
           house: newReport.houseNumber || '',
           status: newReport.status
         }
-      }).catch(err => console.warn('[Nhost Cloud Sync] Report save warning:', err));
-    } catch (e) {
-      console.warn('[Nhost Cloud Sync] Exception saving report:', e);
-    }
+      }).catch(() => {});
+    } catch {}
 
     // If bin is linked, update its status
     if (linkedBin) {
@@ -2409,11 +2740,9 @@ export const mockDb = {
             recipientId: recipientUid,
             content: messageText
           }
-        }).catch(fallbackErr => console.warn('[Nhost Message Sync Fallback]', fallbackErr));
+        }).catch(() => {});
       });
-    } catch (e) {
-      console.warn('[Nhost Cloud Sync] Exception saving message:', e);
-    }
+    } catch {}
 
     // Notify Owner
     if (ownerId && ownerId !== 'ADMIN') {
@@ -2450,10 +2779,8 @@ export const mockDb = {
           }
         }`,
         variables: { id: messageId, isRead: isReadVal }
-      }).catch(err => console.warn('[Nhost Cloud Sync] Update message warning:', err));
-    } catch (e) {
-      console.warn('[Nhost Cloud Sync] Exception updating message:', e);
-    }
+      }).catch(() => {});
+    } catch {}
 
     return true;
   },
@@ -2472,10 +2799,8 @@ export const mockDb = {
           }
         }`,
         variables: { id: messageId }
-      }).catch(err => console.warn('[Nhost Cloud Sync] Delete message warning:', err));
-    } catch (e) {
-      console.warn('[Nhost Cloud Sync] Exception deleting message:', e);
-    }
+      }).catch(() => {});
+    } catch {}
   },
 
   markMessageRead: (messageId: string): void => {
@@ -2494,10 +2819,8 @@ export const mockDb = {
             }
           }`,
           variables: { id: messageId }
-        }).catch(err => console.warn('[Nhost Cloud Sync] Read message warning:', err));
-      } catch (e) {
-        console.warn('[Nhost Cloud Sync] Exception updating message read state:', e);
-      }
+        }).catch(() => {});
+      } catch {}
     }
   },
 

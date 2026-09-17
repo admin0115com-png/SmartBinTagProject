@@ -184,11 +184,9 @@ export async function syncNotificationSettingsToNhost(userId: string, pushEnable
           }
         }`,
         variables: { userId, pushEnabled }
-      }).catch(e => console.warn('[Nhost Push Sync] Fallback error:', e));
+      }).catch(() => {});
     });
-  } catch (e) {
-    console.warn('[Nhost Push Sync] Exception:', e);
-  }
+  } catch {}
 }
 
 /**
@@ -225,10 +223,6 @@ export async function syncCollectionAlertToNhost(
         title,
         body,
       },
-    }).catch(err => {
-      console.warn('[Nhost Collection Alert Sync] Warning:', err);
-    });
-  } catch (e) {
-    console.warn('[Nhost Collection Alert Sync] Exception:', e);
-  }
+    }).catch(() => {});
+  } catch {}
 }

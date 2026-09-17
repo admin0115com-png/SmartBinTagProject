@@ -87,12 +87,6 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
                        '';
 
         const localRes = mockDb.loginExternal(session.user.email || lowerEmail, fName, lName, avatar);
-        
-        if (isAdmin) {
-          alert('👋 Welcome Admin!');
-        } else {
-          alert('👋 Welcome back!');
-        }
 
         onAuthSuccess(localRes.user || {
           uid: session.user.id,
@@ -107,24 +101,13 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
         return;
       }
 
-      console.warn('Nhost login did not produce a session, executing smooth fallback:', error?.message);
-
       // Fallback: local authentication
       const localResult = mockDb.login(loginEmail, loginPassword);
       if (localResult.success && localResult.user) {
-        const isAdmin = localResult.user.accountType === 'admin' || 
-                        lowerEmail === 'admin0115@gmail.com' || 
-                        lowerEmail === 'admin0115.com@gmail.com';
-        if (isAdmin) {
-          alert('👋 Welcome Admin!');
-        } else {
-          alert('👋 Welcome back!');
-        }
         onAuthSuccess(localResult.user);
         return;
       } else if (localResult.error && localResult.error.includes('suspended')) {
         setError(localResult.error);
-        alert('❌ ' + localResult.error);
         return;
       }
 
@@ -136,11 +119,6 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
       
       const extResult = mockDb.loginExternal(lowerEmail, fName, lName, fallbackAv);
       if (extResult.success && extResult.user) {
-        if (extResult.user.accountType === 'admin') {
-          alert('👋 Welcome Admin!');
-        } else {
-          alert('👋 Welcome back!');
-        }
         onAuthSuccess(extResult.user);
         return;
       }
@@ -148,7 +126,6 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
       setError('Login failed. Please check your credentials.');
 
     } catch (err: any) {
-      console.error('Login exception, using local fallback:', err);
       const nameParts = lowerEmail.split('@')[0].split(/[\._-]/);
       const fName = nameParts[0] ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) : 'User';
       const lName = nameParts[1] ? nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1) : '';
@@ -199,8 +176,7 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
       alert('🎉 Account registered successfully! Welcome!');
       onAuthSuccess(localRes.user);
 
-    } catch (err: any) {
-      console.error('Sign up Nhost warning, using local registration:', err);
+    } catch {
       const localRes = mockDb.loginExternal(regEmail, firstName, lastName);
       alert('🎉 Account registered successfully! Welcome!');
       onAuthSuccess(localRes.user);
@@ -252,9 +228,7 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
       } else if (typeof (nhost.auth as any).sendPasswordResetEmail === 'function') {
         await (nhost.auth as any).sendPasswordResetEmail({ email: forgotEmail });
       }
-    } catch (err: any) {
-      console.warn('Nhost password reset dispatch warning:', err);
-    }
+    } catch {}
 
     setForgotSubmitted(true);
     setSuccess(`Password reset link has been dispatched to ${forgotEmail}. Please check your email inbox.`);
@@ -590,7 +564,7 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
                   I accept the Smart Bin Tag{' '}
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setView('eula'); }}
+                    onClick={(e) => { e?.stopPropagation?.(); setView('eula'); }}
                     className="text-[#45D153] hover:underline font-bold"
                   >
                     EULA
@@ -598,7 +572,7 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
                   ,{' '}
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setView('terms'); }}
+                    onClick={(e) => { e?.stopPropagation?.(); setView('terms'); }}
                     className="text-[#45D153] hover:underline font-bold"
                   >
                     Terms of Service
@@ -606,7 +580,7 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
                   ,{' '}
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setView('privacy'); }}
+                    onClick={(e) => { e?.stopPropagation?.(); setView('privacy'); }}
                     className="text-[#45D153] hover:underline font-bold"
                   >
                     Privacy Policy
@@ -614,7 +588,7 @@ export default function Auth({ initialMode, onAuthSuccess, onCancel, setView }: 
                   and{' '}
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setView('cookie'); }}
+                    onClick={(e) => { e?.stopPropagation?.(); setView('cookie'); }}
                     className="text-[#45D153] hover:underline font-bold"
                   >
                     Cookie Policy

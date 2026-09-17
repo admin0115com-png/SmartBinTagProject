@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { User, Bin } from '../types';
+import type { User, Bin, BinColor } from '../types';
 import { mockDb } from '../mockDb';
 import {
   ShieldCheck, Bell, MapPin, QrCode, AlertTriangle, ArrowRight, CheckCircle2,
@@ -12,6 +12,7 @@ interface HeroSectionProps {
   onEnterSerialDirectly: (action: 'found' | 'damaged' | 'register', serial?: string) => void;
   currentUser?: User | null;
   bins?: Bin[];
+  allBins?: Bin[];
   onRefresh?: () => void;
 }
 
@@ -40,6 +41,7 @@ export default function HeroSection({
   onEnterSerialDirectly,
   currentUser,
   bins = [],
+  allBins = [],
   onRefresh
 }: HeroSectionProps) {
   // ==== State ====
@@ -116,7 +118,8 @@ export default function HeroSection({
       green: 'bg-[#059669] border-emerald-500/30',
       blue: 'bg-[#2563eb] border-blue-500/30',
       grey: 'bg-[#4b5563] border-gray-500/30',
-      gray: 'bg-[#4b5563] border-gray-500/30'
+      gray: 'bg-[#4b5563] border-gray-500/30',
+      black: 'bg-[#1f2937] border-gray-700/50'
     };
     return map[c] || 'bg-[#02241d] border-[#064e3f]';
   }, []);
@@ -166,9 +169,23 @@ export default function HeroSection({
     return currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'DEMO ACCOUNT - LOGIN/SIGNUP ABOVE';
   }, [currentUser]);
 
+  // Demo bin colours showcased before users log in
+  const demoBinColours: { type: BinColor; serial: string; note: string; schedule: string }[] = useMemo(() => [
+    { type: 'Green', serial: 'SBT-00000001', note: 'Garden & Food Waste', schedule: 'Tomorrow, 07:00 AM' },
+    { type: 'Black', serial: 'SBT-00000002', note: 'General Domestic Refuse', schedule: 'Friday, 07:00 AM' },
+    { type: 'Blue', serial: 'SBT-00000003', note: 'Paper & Cardboard Recycling', schedule: 'Monday, 07:00 AM' },
+    { type: 'Brown', serial: 'SBT-00000006', note: 'Mixed Plastics & Tins', schedule: 'Wednesday, 07:00 AM' },
+    { type: 'Purple', serial: 'SBT-00000008', note: 'Dry Glass & Recyclables', schedule: 'Thursday, 07:00 AM' },
+    { type: 'Red', serial: 'SBT-00000010', note: 'Clinical & Hazardous Waste', schedule: 'Next Tuesday, 07:00 AM' },
+    { type: 'Grey', serial: 'SBT-00000012', note: 'Residual Non-Recyclable', schedule: 'Saturday, 07:00 AM' }
+  ], []);
+
   const binCountLabel = useMemo(() => {
-    return bins.length > 0 ? `${bins.length} Active` : '6 Active';
-  }, [bins.length]);
+    if (!currentUser) {
+      return `${demoBinColours.length} Demo Bin Colours`;
+    }
+    return `${bins.length} Active`;
+  }, [currentUser, bins.length, demoBinColours.length]);
 
   // ==== Render ====
   return (
@@ -198,11 +215,15 @@ export default function HeroSection({
           <div className="lg:col-span-6 flex flex-col space-y-5 z-10 select-none">
             {/* Welcome Banner */}
             <div className="w-full bg-[#04352b] border-l-4 border-[#45D153] rounded-r-2xl p-4.5 flex items-center justify-between shadow-lg border border-l-0 border-[#064e3f]">
-              <div className="space-y-0.5">
+              <div className="space-y-0.5 min-w-0 flex-1 mr-3">
                 <span className="text-[10px] font-black tracking-[0.22em] text-[#45D153] block uppercase font-mono">
                   {welcomeTag}
                 </span>
-                <h2 className="text-base sm:text-2xl font-black text-white tracking-tight uppercase font-sans">
+                <h2 className={`font-black text-white tracking-tight uppercase font-sans ${
+                  !currentUser
+                    ? 'text-[11px] sm:text-xs md:text-sm lg:text-base whitespace-nowrap overflow-hidden text-ellipsis leading-tight'
+                    : 'text-base sm:text-xl md:text-2xl leading-tight'
+                }`}>
                   {displayName}
                 </h2>
               </div>
@@ -250,78 +271,122 @@ export default function HeroSection({
             {/* Registered Plates Card */}
             <div className="w-full bg-white border border-gray-200 text-gray-900 rounded-[24px] p-5 shadow-2xl flex flex-col justify-between overflow-hidden">
               <div className="flex justify-between items-center mb-3.5">
-                <span className="text-[10px] font-black tracking-widest text-[#047857] uppercase font-sans">
-                  REGISTERED STICKERS
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black tracking-widest text-[#047857] uppercase font-sans">
+                    {currentUser ? 'MY REGISTERED STICKERS' : 'REGISTERED STICKERS (DEMO PREVIEW)'}
+                  </span>
+                  {currentUser?.accountType === 'admin' && (
+                    <button
+                      onClick={() => setView('admin')}
+                      className="text-[9px] font-black tracking-wider text-emerald-700 hover:text-emerald-900 bg-emerald-100 hover:bg-emerald-200 px-2 py-0.5 rounded flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Open Admin Map with all registered tags"
+                    >
+                      <MapPin className="h-2.5 w-2.5" />
+                      VIEW ON ADMIN MAP
+                    </button>
+                  )}
+                </div>
                 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full font-mono border border-emerald-200">
                   {binCountLabel}
                 </span>
               </div>
 
-              <div className="space-y-3 mb-6 max-h-[185px] overflow-y-auto pr-1.5 scroll-smooth custom-scrollbar">
-                {bins.length > 0 ? (
-                  bins.map((bin) => (
-                    <div
-                      key={bin.binId}
-                      onClick={() => handleSelectPreseededSticker(bin.serialNumber)}
-                      className={`${getBinBgColor(bin.binType)} hover:brightness-110 active:scale-[0.99] text-white p-3.5 rounded-2xl flex items-center justify-between border shadow-md cursor-pointer transition-all`}
-                      title="Click to load into Tag Scanner"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center text-white/90">
-                          <QrCode className="h-5.5 w-5.5" />
+              <div className="space-y-3 mb-6 max-h-[230px] overflow-y-auto pr-1.5 scroll-smooth custom-scrollbar">
+                {currentUser ? (
+                  /* LOGGED-IN: Show real tags registered to this user account */
+                  bins.length > 0 ? (
+                    bins.map((bin) => (
+                      <div
+                        key={bin.binId}
+                        onClick={() => handleSelectPreseededSticker(bin.serialNumber)}
+                        className={`${getBinBgColor(bin.binType)} hover:brightness-110 active:scale-[0.99] text-white p-3 rounded-2xl flex items-center justify-between border shadow-md cursor-pointer transition-all`}
+                        title="Click to load into Tag Scanner"
+                      >
+                        <div className="flex items-center space-x-3 min-w-0 flex-1 mr-2">
+                          <div className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center text-white/90 shrink-0">
+                            <QrCode className="h-5.5 w-5.5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-xs font-black tracking-wider uppercase">{bin.binType} BIN</h4>
+                              <span className="text-[9px] bg-black/30 text-white font-mono font-bold px-1.5 py-0.5 rounded">
+                                {bin.serialNumber}
+                              </span>
+                            </div>
+                            {(bin.houseNumber || bin.street || bin.postcode) && (
+                              <div className="text-[10px] text-white/90 flex items-center gap-1 mt-1 truncate">
+                                <MapPin className="h-3 w-3 text-[#45D153] shrink-0" />
+                                <span className="truncate">
+                                  {bin.houseNumber ? `${bin.houseNumber} ` : ''}{bin.street || ''}
+                                  {bin.town ? `, ${bin.town}` : ''}
+                                  {bin.postcode ? ` (${bin.postcode})` : ''}
+                                </span>
+                              </div>
+                            )}
+                            {bin.nextCollection && (
+                              <div className="text-[9px] text-emerald-100/90 font-mono mt-0.5 truncate">
+                                Next: {bin.nextCollection}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="text-xs font-black tracking-wider uppercase">{bin.binType} BIN</h4>
-                          <span className="text-[10px] font-mono opacity-85">{bin.serialNumber}</span>
+                        <div className="text-right shrink-0 pl-1">
+                          <span className="text-[9px] font-bold opacity-75 block uppercase">STATUS</span>
+                          <span className="text-xs font-black">{bin.status}</span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-[9px] font-bold opacity-75 block uppercase">STATUS</span>
-                        <span className="text-xs font-black">{bin.status}</span>
+                    ))
+                  ) : (
+                    <div className="py-7 px-4 text-center border-2 border-dashed border-emerald-900/30 rounded-2xl bg-emerald-950/10">
+                      <QrCode className="h-8 w-8 text-emerald-600/50 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-gray-800 uppercase tracking-wider font-mono">No Registered Stickers Yet</p>
+                      <p className="text-[11px] text-gray-500 mt-1 mb-3">No Smart Bin Tags have been linked to your account ({currentUser.email}) yet.</p>
+                      <button
+                        onClick={() => setView('register-bin')}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#059669] hover:bg-[#047857] text-white text-[10.5px] font-black uppercase rounded-lg shadow-sm transition-all cursor-pointer"
+                      >
+                        <QrCode className="h-3.5 w-3.5" />
+                        Register A Smart Bin Tag
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  /* BEFORE LOGIN: Display all colour bins as a demo */
+                  demoBinColours.map((demo) => (
+                    <div
+                      key={demo.serial}
+                      onClick={() => handleSelectPreseededSticker(demo.serial)}
+                      className={`${getBinBgColor(demo.type)} hover:brightness-110 active:scale-[0.99] text-white p-3 rounded-2xl flex items-center justify-between border shadow-md cursor-pointer transition-all`}
+                      title="Click to test in Tag Scanner"
+                    >
+                      <div className="flex items-center space-x-3 min-w-0 flex-1 mr-2">
+                        <div className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center text-white/90 shrink-0">
+                          <QrCode className="h-5.5 w-5.5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="text-xs font-black tracking-wider uppercase">{demo.type} BIN</h4>
+                            <span className="text-[9px] bg-black/30 text-white font-mono font-bold px-1.5 py-0.5 rounded">
+                              {demo.serial}
+                            </span>
+                            <span className="text-[8px] bg-white/20 text-white font-mono uppercase px-1 rounded">
+                              Demo
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-white/90 mt-0.5 truncate">
+                            {demo.note}
+                          </div>
+                          <div className="text-[9px] text-emerald-100/90 font-mono mt-0.5 truncate">
+                            Schedule: {demo.schedule}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 pl-1">
+                        <span className="text-[9px] font-bold opacity-75 block uppercase">PREVIEW</span>
+                        <span className="text-[10px] font-black font-mono text-emerald-300">Click to Test</span>
                       </div>
                     </div>
                   ))
-                ) : currentUser ? (
-                  /* User / Admin with no registered bins: render BLANK until new bin tags are registered */
-                  <div className="py-8 text-center border-2 border-dashed border-emerald-900/40 rounded-2xl bg-emerald-950/10">
-                    <QrCode className="h-8 w-8 text-emerald-600/40 mx-auto mb-2" />
-                    <p className="text-xs font-bold text-emerald-200/60 uppercase tracking-wider font-mono">No Registered Stickers Yet</p>
-                    <p className="text-[10px] text-emerald-100/40 mt-1">Register a new Smart Bin Tag to place it here.</p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Guest registered stickers box: show full demo tags */}
-                    {[
-                      { type: 'BROWN', serial: 'SBT-00000006', color: 'bg-[#78350f] border-[#92400e]/30', text: 'text-amber-200/80', status: 'In 3 Days' },
-                      { type: 'RED', serial: 'SBT-00000010', color: 'bg-[#f43f5e] border-rose-500/30', text: 'text-rose-100/80', status: 'Next Friday' },
-                      { type: 'PURPLE', serial: 'SBT-00000008', color: 'bg-[#8b5cf6] border-violet-500/30', text: 'text-violet-100/80', status: 'In 2 weeks' },
-                      { type: 'GREEN', serial: 'SBT-00000001', color: 'bg-[#059669] border-emerald-500/30', text: 'text-emerald-100/80', status: 'Tomorrow' },
-                      { type: 'BLUE', serial: 'SBT-00000003', color: 'bg-[#2563eb] border-blue-500/30', text: 'text-blue-100/80', status: 'Monday' },
-                      { type: 'GREY', serial: 'SBT-00000002', color: 'bg-[#4b5563] border-gray-500/30', text: 'text-gray-200/80', status: 'Next Month' }
-                    ].map((demo) => (
-                      <div
-                        key={demo.serial}
-                        onClick={() => handleSelectPreseededSticker(demo.serial)}
-                        className={`${demo.color} hover:brightness-110 active:scale-[0.99] text-white p-3.5 rounded-2xl flex items-center justify-between border shadow-md cursor-pointer transition-all`}
-                        title="Click to load into Tag Scanner"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center text-white/90">
-                            <QrCode className="h-5.5 w-5.5" />
-                          </div>
-                          <div>
-                            <h4 className="text-xs font-black tracking-wider uppercase">{demo.type} BIN</h4>
-                            <span className={`text-[10px] font-mono ${demo.text}`}>{demo.serial}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[9px] font-bold opacity-75 block uppercase">COLLECTION</span>
-                          <span className="text-xs font-black">{demo.status}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </>
                 )}
               </div>
 
@@ -478,7 +543,7 @@ export default function HeroSection({
         </div>
         <div className="border border-[#064e3f] rounded-[24px] overflow-hidden shadow-2xl bg-[#011a14] relative">
           <img
-            src="/images/bin_tag_garden_mockup_1783859098816.jpg"
+            src="/src/assets/images/bin_tag_garden_mockup_1783859098816.jpg"
             alt="Smart Bin Tag App and Wheelie Bin Mockup"
             className="w-full h-auto object-cover block"
             referrerPolicy="no-referrer"
@@ -527,7 +592,7 @@ export default function HeroSection({
         <div className="bg-[#011a14] border border-[#064e3f] rounded-[24px] p-4 sm:p-6 shadow-2xl space-y-6">
           <div className="rounded-2xl overflow-hidden border border-[#064e3f] shadow-lg max-w-4xl mx-auto">
             <img
-              src="/images/save_app_three_phones_hand_1785956916628.jpg"
+              src="/src/assets/images/save_app_three_phones_hand_1785956916628.jpg"
               alt="Save SmartBinTag App 3-Phone Guide with smartbintagapp.com, Bottom Share Button, and Green SBT App Icon"
               className="w-full h-auto object-cover block"
               referrerPolicy="no-referrer"

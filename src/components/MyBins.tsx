@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Bin, BinColor, BinReport, ReminderSchedule, BinTag } from '../types';
 import { mockDb } from '../mockDb';
-import { nhost, toUuid } from '../lib/nhost';
+import { nhost, toUuid, deleteTagInNhost, updateTagInNhost } from '../lib/nhost';
 import {
   Eye, Edit2, Trash2, Calendar, AlertCircle, Check, Plus, Save, X, ArrowLeft, Volume2, Home, MapPin, Tag
 } from 'lucide-react';
@@ -215,8 +215,8 @@ export default function MyBins({
     resetFormState();
   }, [resetFormState]);
 
-  const handleOpenEdit = useCallback((bin: Bin, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleOpenEdit = useCallback((bin: Bin, e?: React.MouseEvent) => {
+    e?.stopPropagation?.();
     setSelectedBin(bin);
     setIsEditing(true);
     setIsViewingReminders(false);
@@ -232,8 +232,8 @@ export default function MyBins({
     resetFormState();
   }, [resetFormState]);
 
-  const handleOpenReminders = useCallback((bin: Bin, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleOpenReminders = useCallback((bin: Bin, e?: React.MouseEvent) => {
+    e?.stopPropagation?.();
     setSelectedBin(bin);
     setIsEditing(false);
     setIsViewingReminders(true);
@@ -293,6 +293,13 @@ export default function MyBins({
       if (selectedBin.serialNumber) {
         try {
           const addrString = [houseNumber, street, town, county, postcode].filter(Boolean).join(', ');
+          await updateTagInNhost(selectedBin.serialNumber, {
+            binColour: binType,
+            propertyName: propertyName || undefined,
+            address: addrString,
+            notes: notes || undefined
+          });
+
           await nhost.graphql.request({
             query: `
               mutation UpdateTagDetails($serialNumber: String!, $binType: String!, $address: String!, $notes: String) {
@@ -309,10 +316,7 @@ export default function MyBins({
               notes: notes || null
             }
           });
-          console.log('[Nhost sync] Tag address & details updated in Nhost.');
-        } catch (nhostErr) {
-          console.warn('[Nhost warning] Tag details sync warning:', nhostErr);
-        }
+        } catch {}
       }
 
       setFormSuccess('Bin details updated successfully!');
@@ -454,11 +458,8 @@ export default function MyBins({
               };
 
           await nhost.graphql.request(mutation);
-          console.log('[Nhost sync] Collection alerts synced successfully with notification preferences.');
         }
-      } catch (nhostErr) {
-        console.warn('[Nhost warning] Cloud sync failed:', nhostErr);
-      }
+      } catch {}
 
       setFormSuccess('Reminder schedule & notification channels saved successfully!');
       onRefresh();
@@ -472,8 +473,8 @@ export default function MyBins({
     }
   }, [selectedBin, reminderId, ownerId, collectionDay, frequency, reminderOneTime, reminderTwoTime, reminderEnabled, alarmTone, inAppEnabled, emailEnabled, popUpEnabled, onRefresh]);
 
-  const handleDeleteBin = useCallback((binId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteBin = useCallback((binId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation?.();
     setDeleteConfirmBinId(binId);
   }, []);
 
@@ -483,26 +484,15 @@ export default function MyBins({
     const targetBin = bins.find(b => b.binId === deleteConfirmBinId);
     if (targetBin?.serialNumber) {
       try {
-        await nhost.graphql.request({
-          query: `
-            mutation DeleteBinAndReleaseTag($serialNumber: String!) {
-              delete_collection_alerts(where: { tag: { serial_number: { _eq: $serialNumber } } }) { affected_rows }
-              update_tags(where: { serial_number: { _eq: $serialNumber } }, _set: { status: "Available", registered_by: null }) { affected_rows }
-            }
-          `,
-          variables: { serialNumber: targetBin.serialNumber }
-        });
-        console.log('[Nhost sync] Bin deleted and tag released.');
-      } catch (nhostErr) {
-        console.warn('[Nhost warning] Delete sync failed:', nhostErr);
-      }
+        await deleteTagInNhost(targetBin.serialNumber);
+      } catch {}
     }
 
     mockDb.deleteBin(deleteConfirmBinId);
     onRefresh();
     setSelectedBin(null);
     setDeleteConfirmBinId(null);
-    showNotification('Bin registration deleted successfully.', 'success');
+    showNotification('Bin tag deleted and reset in Nhost and Admin successfully.', 'success');
   }, [deleteConfirmBinId, bins, onRefresh, showNotification]);
 
   const handleResolveReport = useCallback((reportId: string) => {
@@ -705,7 +695,7 @@ export default function MyBins({
                       <span>Activate Alert</span>
                     </button>
 
-                    <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                    <div className="grid grid-cols-4 gap-1.5 text-[10px]">
                       <button
                         type="button"
                         onClick={() => setSelectedBin(bin)}
@@ -713,25 +703,34 @@ export default function MyBins({
                         title="View Tag Details"
                       >
                         <Eye className="h-3 w-3" />
-                        <span>Details</span>
+                        <span className="hidden sm:inline">Details</span>
                       </button>
                       <button
                         type="button"
                         onClick={(e) => handleOpenEdit(bin, e)}
                         className="py-1.5 px-2 bg-[#011a14] hover:bg-[#032c24] border border-[#064e3f] text-emerald-200 hover:text-white rounded-lg font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                        title="Edit Set Location & Details"
+                        title="Edit Tag Details, Colour & Address"
                       >
                         <Edit2 className="h-3 w-3" />
-                        <span>Location</span>
+                        <span>Edit</span>
                       </button>
                       <button
                         type="button"
                         onClick={(e) => handleOpenReminders(bin, e)}
                         className="py-1.5 px-2 bg-[#011a14] hover:bg-[#032c24] border border-[#064e3f] text-emerald-200 hover:text-white rounded-lg font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                        title="Configure Reminders"
+                        title="Configure Reminders & Alarms"
                       >
                         <Calendar className="h-3 w-3" />
                         <span>Alarms</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteBin(bin.binId, e)}
+                        className="py-1.5 px-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 text-rose-300 hover:text-rose-200 rounded-lg font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        title="Delete Tag and Reset in Nhost & Admin"
+                      >
+                        <Trash2 className="h-3 w-3 text-rose-400" />
+                        <span>Delete</span>
                       </button>
                     </div>
                   </div>
@@ -971,8 +970,9 @@ export default function MyBins({
                   Edit
                 </button>
                 <div className="flex gap-2">
-                  <button onClick={() => handleDeleteBin(selectedBin.binId, {} as React.MouseEvent)} className="px-4 py-2.5 bg-rose-950/40 hover:bg-rose-950/60 text-rose-300 border border-rose-900/40 rounded-xl text-xs font-bold transition-colors cursor-pointer">
-                    Unregister
+                  <button onClick={(e) => handleDeleteBin(selectedBin.binId, e)} className="px-4 py-2.5 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-900/40 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5">
+                    <Trash2 className="h-3.5 w-3.5 text-rose-400" />
+                    Delete Tag
                   </button>
                   <button onClick={() => setSelectedBin(null)} className="px-4 py-2.5 bg-[#45D153] hover:bg-[#5ce06a] text-[#04352b] rounded-xl text-xs font-bold transition-colors cursor-pointer">
                     Done
@@ -1167,6 +1167,49 @@ export default function MyBins({
                   )}
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmBinId && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:p-0">
+            <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md transition-opacity" onClick={() => setDeleteConfirmBinId(null)}></div>
+            <div className="relative z-10 inline-block align-bottom bg-[#02241d] rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-rose-900/60 p-6 text-white space-y-4">
+              <div className="flex items-center gap-3 text-rose-400">
+                <div className="p-2.5 rounded-xl bg-rose-950/60 border border-rose-900/60">
+                  <Trash2 className="h-6 w-6 text-rose-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-wider text-white">Delete Smart Bin Tag</h3>
+                  <p className="text-xs text-rose-300/80 font-mono font-bold">
+                    Tag: {bins.find(b => b.binId === deleteConfirmBinId)?.serialNumber || deleteConfirmBinId}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-xs text-emerald-100/80 leading-relaxed">
+                Are you sure you want to delete this registered tag? This action removes the tag binding, resets the owner ID and email in both Nhost and the Admin system, returns the tag to available stock, and deletes linked reminder alarms.
+              </p>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmBinId(null)}
+                  className="px-4 py-2 text-xs font-bold text-white bg-[#011a14] border border-[#064e3f] hover:bg-[#032c24] rounded-xl transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2 text-xs font-black uppercase tracking-wider text-white bg-rose-600 hover:bg-rose-500 rounded-xl transition-all shadow-lg flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Confirm Delete</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
